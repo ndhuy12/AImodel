@@ -62,40 +62,40 @@ def set_global_style(bg_source):
     .block-container {{ padding-top: 0rem !important; margin-top: 10px !important; }}
     .nav-container {{ padding: 0; margin-bottom: 20px; }}
 
-    /* --- STYLE CHO NÚT BẤM TRÊN NAVBAR --- */
     div[data-testid="stHorizontalBlock"] button {{
         background-color: transparent !important;
-        
-        /* [SỬA LẠI] Đặt border là none trước để xóa sạch mặc định */
-        border: none !important;
-        /* Tạo viền dưới trong suốt để giữ chỗ */
+        border: 0px solid transparent !important;
         border-bottom: 3px solid transparent !important;
-        border-radius: 0 !important;
+        border-radius: 0px !important;
         
         color: #FFFFFF !important;
         font-size: 20px !important;
         font-weight: 700 !important;
         text-shadow: 0px 2px 5px rgba(0,0,0,0.8);
-        transition: all 0.3s ease;
+        transition: all 0.2s ease-in-out;
         text-decoration: none !important;
+        padding-left: 5px !important;
+        padding-right: 5px !important;
     }}
     
-    /* Hiệu ứng khi di chuột (Hover) */
     div[data-testid="stHorizontalBlock"] button:hover {{
-        color: #ff7f50 !important; /* Màu chữ cam */
-        text-shadow: 0px 0px 10px #ff7f50; 
-        
-        transform: none !important; 
-        
-        /* [SỬA LẠI QUAN TRỌNG] Khai báo lại đầy đủ thuộc tính border-bottom 
-           để ép buộc nó hiện ra, thay vì chỉ đổi màu */
+        color: #ff7f50 !important;
+        text-shadow: 0px 0px 10px #ff7f50;
+        transform: none !important;
         border-bottom: 3px solid #ff7f50 !important;
     }}
+
+    div[data-testid="stHorizontalBlock"] button:active, 
+    div[data-testid="stHorizontalBlock"] button:focus {{
+        background-color: transparent !important;
+        color: #ff7f50 !important;
+        border-bottom: 3px solid #ff7f50 !important;
+        box-shadow: none !important;
+    }}
     
-    /* Style riêng cho cái popover (menu xổ xuống) để nó không bị ảnh hưởng */
-    div[data-testid="stPopoverBody"] button {
+    div[data-testid="stPopoverBody"] button {{
         border-bottom: none !important;
-    }
+    }}
 
     .nav-logo {{
         font-size: 24px; font-weight: 900; color: #fff; margin: 0; 
