@@ -245,7 +245,7 @@ def show_favorites_page():
                         st.rerun()
 
 def show_wiki_page():
-    set_global_style("wiki_bg.png")
+    set_global_style("test.jpg")
     show_navbar()
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("🕵️ Character Wiki & Vision")
@@ -371,4 +371,5 @@ elif st.session_state.current_page == 'recommend': show_recommend_page()
 elif st.session_state.current_page == 'favorites': show_favorites_page()
 
 elif st.session_state.current_page == 'contact': show_contact_page()
+
 
