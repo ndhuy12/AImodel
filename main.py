@@ -162,7 +162,7 @@ def show_homepage():
 
 # # Pages Logic
 def show_genre_page():
-    set_global_style("https://images3.alphacoders.com/812/thumb-1920-812062.png")
+    set_global_style("test4.jpg")
     show_navbar()
     
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
@@ -244,7 +244,7 @@ def show_favorites_page():
                         st.rerun()
 
 def show_wiki_page():
-    set_global_style("test.jpg")
+    set_global_style("test3.jpg")
     show_navbar()
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("🕵️ Character Wiki & Vision")
@@ -353,7 +353,7 @@ def show_wiki_page():
             display_final_result()
 
 def show_recommend_page():
-    set_global_style("https://images.alphacoders.com/133/thumb-1920-1330275.png")
+    set_global_style("test1.png")
     show_navbar()
     st.markdown('<div class="content-box"><h2>🤖 AI Recommend (Coming Soon)</h2></div>', unsafe_allow_html=True)
 
@@ -370,6 +370,7 @@ elif st.session_state.current_page == 'recommend': show_recommend_page()
 elif st.session_state.current_page == 'favorites': show_favorites_page()
 
 elif st.session_state.current_page == 'contact': show_contact_page()
+
 
 
 
