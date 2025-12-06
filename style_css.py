@@ -66,24 +66,29 @@ def set_global_style(bg_source):
     div[data-testid="stHorizontalBlock"] button {{
         background-color: transparent !important;
         border: none !important;
+        
+        /* [QUAN TRỌNG] Tạo sẵn một viền dưới trong suốt dày 3px */
+        /* Để khi hover vào nó chỉ đổi màu chứ không làm nút nhảy lên nhảy xuống */
+        border-bottom: 3px solid transparent !important;
+        border-radius: 0 !important; /* Vuông góc để gạch chân trông sắc nét */
+        
         color: #FFFFFF !important;
         font-size: 20px !important;
         font-weight: 700 !important;
         text-shadow: 0px 2px 5px rgba(0,0,0,0.8);
         transition: all 0.3s ease;
-        text-decoration: none; /* Mặc định không gạch chân */
+        text-decoration: none !important; /* Tắt gạch chân mặc định */
     }}
     
     /* Hiệu ứng khi di chuột (Hover) */
     div[data-testid="stHorizontalBlock"] button:hover {{
-        color: #00D4FF !important;
-        text-shadow: 0px 0px 10px #00D4FF;
+        color: #ff7f50 !important; /* Màu chữ cam */
+        text-shadow: 0px 0px 10px #ff7f50; 
         
-        /* Thay đổi ở đây: Tắt scale, Bật underline */
         transform: none !important; 
-        text-decoration: underline !important;
-        text-underline-offset: 8px !important; /* Khoảng cách giữa chữ và gạch chân */
-        text-decoration-thickness: 3px !important; /* Độ dày nét gạch */
+        
+        /* [QUAN TRỌNG] Đổi màu viền dưới thành cam => Tạo thành gạch chân liền mạch */
+        border-bottom-color: #ff7f50 !important;
     }}
 
     .nav-logo {{
