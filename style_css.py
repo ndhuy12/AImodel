@@ -14,14 +14,13 @@ def get_base64_of_bin_file(filename):
 def set_global_style(bg_source):
     background_css = ""
 
-    # Xử lý hình nền
     if bg_source.startswith("#"):
         background_css = f"""
             background-color: {bg_source} !important;
             background-image: none !important;
         """
     elif bg_source.startswith("http"):
-        # Lớp phủ đen 50% lên toàn màn hình
+        # Tăng lớp phủ đen lên 50% để chữ dễ đọc hơn ngay cả khi chưa vào khung
         background_css = f"""
             background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("{bg_source}");
             background-size: cover;
@@ -43,110 +42,97 @@ def set_global_style(bg_source):
 
     st.markdown(f"""
     <style>
-    /* 1. SETUP GIAO DIỆN CHUNG */
+    /* 1. Thiết lập hình nền chung */
     .stApp {{ {background_css} }}
     
+    /* 2. Màu chữ chung */
     h1, h2, h3, h4, p, span, div, label, li {{
         color: white !important;
         text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
         font-weight: 500;
     }}
-    
-    /* Ẩn các thành phần thừa của Streamlit */
-    header, [data-testid="stHeader"] {{display: none !important;}}
-    .stStatusWidget {{visibility: hidden !important;}}
-    .block-container {{ padding-top: 0rem !important; margin-top: 10px !important; }}
-    div[data-testid="stDecoration"] {{ display: none !important; }}
 
-    /* 2. THANH MENU (NAVBAR) TRONG SUỐT */
+    /* 3. Ẩn thành phần thừa */
+    header {{display: none !important;}}
+    [data-testid="stHeader"] {{display: none !important;}}
+    .stStatusWidget, [data-testid="stStatusWidget"] {{visibility: hidden !important; display: none !important;}}
+    div[data-testid="stDecoration"] {{ display: none !important; }}
+    .block-container {{ padding-top: 0rem !important; margin-top: 10px !important; }}
+
+    /* 4. NAVBAR (Thanh menu): TRONG SUỐT HOÀN TOÀN */
     .nav-container {{ 
         background-color: transparent !important;
         box-shadow: none !important;
+        backdrop-filter: none !important;
+        margin-bottom: 20px;
     }}
 
-    /* 3. [FIX QUAN TRỌNG] ĐỔ MÀU KHỐI NỘI DUNG (Manga of the Day) */
-    /* Dùng selector cụ thể hơn để Streamlit không thể chối từ */
-    div[data-testid="stVerticalBlockBorderWrapper"], 
-    div[data-testid="stVerticalBlockBorderWrapper"] > div {{
-        background-color: rgba(10, 10, 20, 0.9) !important; /* Màu xanh đen đậm 90% */
-        border-color: #ff7f50 !important; /* Viền cam */
+    /* --- [PHẦN QUAN TRỌNG NHẤT] ĐỔ MÀU KHUNG TRUYỆN --- */
+    /* Target vào khung có border=True */
+    div[data-testid="stVerticalBlockBorderWrapper"] {{
+        /* Màu nền: Xanh đen rất đậm (gần như đen), độ đậm 90% */
+        background-color: #0a0a15 !important; 
+        opacity: 0.95; /* Độ chắn sáng cao */
+        
+        border: 2px solid #ff7f50 !important; /* Viền màu cam */
         border-radius: 15px !important;
+        padding: 20px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important; /* Bóng đổ đậm để nổi khối */
     }}
     
-    /* Fix lỗi chữ bị mờ trong khối */
-    div[data-testid="stVerticalBlockBorderWrapper"] p,
-    div[data-testid="stVerticalBlockBorderWrapper"] h1,
-    div[data-testid="stVerticalBlockBorderWrapper"] h2,
-    div[data-testid="stVerticalBlockBorderWrapper"] h3 {{
-        background-color: transparent !important;
+    /* Đảm bảo chữ bên trong khung không bị mờ */
+    div[data-testid="stVerticalBlockBorderWrapper"] * {{
+        opacity: 1 !important;
     }}
 
-    /* 4. STYLE ẢNH */
+    /* 5. STYLE CHO ẢNH */
     div[data-testid="stImage"] {{ background-color: transparent !important; }}
     div[data-testid="stImage"] > img {{ border-radius: 12px !important; }}
 
-    /* 5. [FIX LỖI MENU SERVICES] XỬ LÝ NÚT POPOVER RIÊNG */
-    /* Nút Services (Popover) thường bị dính style mặc định màu xanh */
-    div[data-testid="stPopover"] > button {{
+    /* 6. NAVBAR BUTTONS (Nút bấm trong suốt, hover cam) */
+    div[data-testid="stHorizontalBlock"] button {{
         background-color: transparent !important;
-        border: none !important;
-        border-bottom: 3px solid transparent !important; /* Viền ẩn */
-        border-radius: 0px !important;
-        color: white !important;
-        font-size: 20px !important;
-        font-weight: 700 !important;
-        box-shadow: none !important; /* Xóa bóng xanh mặc định */
-        padding: 0 5px !important;
-        margin-top: 2px !important; /* Căn chỉnh cho bằng với các nút khác */
-    }}
-
-    /* Hiệu ứng khi di chuột vào Services */
-    div[data-testid="stPopover"] > button:hover {{
-        color: #ff7f50 !important;
-        border-bottom: 3px solid #ff7f50 !important; /* Hiện viền cam */
-    }}
-
-    /* 6. CÁC NÚT THƯỜNG (Home, Favorites, Contact) */
-    div[data-testid="stHorizontalBlock"] > div > div > div > button {{
-        background-color: transparent !important;
-        border: none !important;
+        border: 0px solid transparent !important;
         border-bottom: 3px solid transparent !important;
         border-radius: 0px !important;
-        color: white !important;
+        color: #FFFFFF !important;
         font-size: 20px !important;
         font-weight: 700 !important;
-        box-shadow: none !important;
+        transition: all 0.2s ease-in-out;
+        text-decoration: none !important;
         padding: 0 5px !important;
     }}
-
     div[data-testid="stHorizontalBlock"] button:hover {{
         color: #ff7f50 !important;
         border-bottom: 3px solid #ff7f50 !important;
         text-shadow: 0px 0px 10px #ff7f50;
     }}
-
-    div[data-testid="stHorizontalBlock"] button:focus:not(:active) {{
-        border-color: transparent !important;
-        color: white !important;
+    div[data-testid="stHorizontalBlock"] button:active, 
+    div[data-testid="stHorizontalBlock"] button:focus {{
+        background-color: transparent !important;
+        color: #ff7f50 !important;
+        border-bottom: 3px solid #ff7f50 !important;
+        box-shadow: none !important;
     }}
-
-    /* 7. MENU CON BÊN TRONG SERVICES */
+    
+    /* 7. MENU CON (SERVICES) */
     div[data-testid="stPopoverBody"] button {{
         border: 1px solid #ff7f50 !important;
         border-radius: 8px !important;
         background-color: rgba(0, 0, 0, 0.8) !important;
         color: white !important;
-        margin-bottom: 5px !important;
     }}
     div[data-testid="stPopoverBody"] button:hover {{
+        border-color: #ff4500 !important;
         background-color: rgba(255, 127, 80, 0.3) !important;
         color: #ff7f50 !important;
     }}
 
-    /* 8. NÚT PRIMARY (Gradient Cam) */
+    /* 8. NÚT PRIMARY */
     button[kind="primary"] {{
         background: linear-gradient(90deg, #ff7f50, #ff4500) !important;
         color: white !important; border: none !important;
+        box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);
     }}
 
     .nav-logo {{ font-size: 24px; font-weight: 900; color: #fff; margin: 0; font-family: 'Arial', sans-serif; text-transform: uppercase; }}
