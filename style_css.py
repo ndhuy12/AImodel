@@ -21,7 +21,7 @@ def set_global_style(bg_source):
         """
     elif bg_source.startswith("http"):
         background_css = f"""
-            background-image: url("{bg_source}");
+            background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("{bg_source}");
             background-size: cover;
             background-attachment: fixed;
             background-position: center;
