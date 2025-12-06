@@ -59,21 +59,36 @@ def set_global_style(bg_source):
     div[data-testid="stImage"] {{ background-color: transparent !important; }}
     div[data-testid="stImage"] > img {{ border-radius: 12px !important; }}
 
+    /* --- [ĐÃ SỬA LẠI] NAV-CONTAINER TRONG SUỐT --- */
     .block-container {{ padding-top: 0rem !important; margin-top: 10px !important; }}
-    
-    /* --- [SỬA ĐỔI MỚI] STYLE CHO THANH NAVBAR --- */
-    .nav-container {{
-        padding: 10px 20px; /* Thêm khoảng cách bên trong */
-        margin-bottom: 20px;
-        background-color: rgba(0, 0, 0, 0.3); /* Lớp nền đen mờ (30%) */
-        border-radius: 15px; /* Bo góc cho đẹp */
-        backdrop-filter: blur(5px); /* Hiệu ứng làm mờ kính hiện đại */
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2); /* Thêm bóng nhẹ */
+    .nav-container {{ 
+        padding: 0; 
+        margin-bottom: 20px; 
+        background-color: transparent !important; /* Trả về trong suốt */
+        box-shadow: none !important;
+        backdrop-filter: none !important;
     }}
 
-    /* --- 1. STYLE CHO NÚT BẤM TRÊN NAVBAR (Menu ngang) --- */
+    /* --- [MỚI] STYLE CHO CÁC KHỐI NỘI DUNG (Manga of the Day, Favorites...) --- */
+    /* Nhắm mục tiêu vào các st.container(border=True) */
+    div[data-testid="stVerticalBlockBorderWrapper"] {{
+        background-color: rgba(0, 0, 0, 0.7) !important; /* Nền đen mờ 70% */
+        border-radius: 15px !important;
+        border: 1px solid rgba(255, 127, 80, 0.3) !important; /* Viền cam nhẹ */
+        padding: 25px !important; /* Tăng khoảng cách bên trong */
+        backdrop-filter: blur(10px); /* Làm mờ nền phía sau khối */
+    }}
+    /* Loại bỏ bóng chữ bên trong khối tối để dễ đọc hơn */
+    div[data-testid="stVerticalBlockBorderWrapper"] p,
+    div[data-testid="stVerticalBlockBorderWrapper"] h2,
+    div[data-testid="stVerticalBlockBorderWrapper"] span {{
+        text-shadow: none !important;
+    }}
+
+
+    /* --- STYLE CHO NÚT BẤM TRÊN NAVBAR (Menu ngang) --- */
     div[data-testid="stHorizontalBlock"] button {{
-        /* background-color: transparent !important; -> Bỏ dòng này để nút ăn theo nền container */
+        background-color: transparent !important; /* Nút trong suốt */
         border: 0px solid transparent !important;
         border-bottom: 3px solid transparent !important;
         border-radius: 0px !important;
@@ -92,18 +107,18 @@ def set_global_style(bg_source):
         color: #ff7f50 !important; /* Màu cam */
         text-shadow: 0px 0px 10px #ff7f50;
         transform: none !important;
-        border-bottom: 3px solid #ff7f50 !important;
+        border-bottom: 3px solid #ff7f50 !important; /* Gạch chân cam */
     }}
 
     div[data-testid="stHorizontalBlock"] button:active, 
     div[data-testid="stHorizontalBlock"] button:focus {{
-        /* background-color: transparent !important; -> Bỏ dòng này */
+        background-color: transparent !important;
         color: #ff7f50 !important;
         border-bottom: 3px solid #ff7f50 !important;
         box-shadow: none !important;
     }}
     
-    /* --- 2. STYLE CHO CÁC KHỐI NÚT TRONG MENU SERVICES (Popover) --- */
+    /* --- STYLE CHO CÁC KHỐI NÚT TRONG MENU SERVICES (Popover) --- */
     div[data-testid="stPopoverBody"] button {{
         border: 2px solid #ff7f50 !important;
         border-radius: 10px !important;
@@ -118,7 +133,7 @@ def set_global_style(bg_source):
         color: #ff7f50 !important;
     }}
 
-    /* --- 3. STYLE CHO NÚT PRIMARY --- */
+    /* --- STYLE CHO NÚT PRIMARY --- */
     button[kind="primary"] {{
         background: linear-gradient(90deg, #ff7f50, #ff4500) !important;
         color: white !important; border: none !important;
@@ -128,7 +143,6 @@ def set_global_style(bg_source):
     .nav-logo {{
         font-size: 24px; font-weight: 900; color: #fff; margin: 0; 
         font-family: 'Arial', sans-serif; text-transform: uppercase;
-        padding-left: 10px; /* Thêm chút khoảng cách cho logo */
     }}
     </style>
     """, unsafe_allow_html=True)
