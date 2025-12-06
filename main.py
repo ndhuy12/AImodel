@@ -360,7 +360,15 @@ def show_contact_page():
     show_navbar()
     st.markdown('<div class="content-box"><h2>📞 Contact Us</h2></div>', unsafe_allow_html=True)
 
-if st.session_state.current_page == 'home': show_homepage()
-elif st.session_state.current_page == 'wiki': show_wiki_page()
-elif st.session_state.current_page == 'genre': show_genre_page()
-elif st.session
+if st.session_state.current_page == 'home': 
+    show_homepage()
+elif st.session_state.current_page == 'wiki': 
+    show_wiki_page()
+elif st.session_state.current_page == 'genre': 
+    show_genre_page()
+elif st.session_state.current_page == 'recommend': 
+    show_recommend_page()
+elif st.session_state.current_page == 'favorites': 
+    show_favorites_page()
+elif st.session_state.current_page == 'contact': 
+    show_contact_page()
