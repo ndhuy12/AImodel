@@ -72,7 +72,6 @@ def show_navbar():
             if st.button("Home", use_container_width=True): navigate_to('home')
         with col3:
             with st.popover("Services", use_container_width=True):
-                st.markdown("### 🛠 Utilities")
                 if st.button("🕵️ Wiki Search", use_container_width=True): navigate_to('wiki')
                 if st.button("📂 Genre Explorer", use_container_width=True): navigate_to('genre')
                 if st.button("🤖 AI Recommend", use_container_width=True): navigate_to('recommend')
@@ -371,6 +370,7 @@ elif st.session_state.current_page == 'recommend': show_recommend_page()
 elif st.session_state.current_page == 'favorites': show_favorites_page()
 
 elif st.session_state.current_page == 'contact': show_contact_page()
+
 
 
 
