@@ -62,6 +62,7 @@ def set_global_style(bg_source):
     .block-container {{ padding-top: 0rem !important; margin-top: 10px !important; }}
     .nav-container {{ padding: 0; margin-bottom: 20px; }}
 
+    /* --- STYLE CHO NÚT BẤM TRÊN NAVBAR --- */
     div[data-testid="stHorizontalBlock"] button {{
         background-color: transparent !important;
         border: none !important;
@@ -70,11 +71,19 @@ def set_global_style(bg_source):
         font-weight: 700 !important;
         text-shadow: 0px 2px 5px rgba(0,0,0,0.8);
         transition: all 0.3s ease;
+        text-decoration: none; /* Mặc định không gạch chân */
     }}
+    
+    /* Hiệu ứng khi di chuột (Hover) */
     div[data-testid="stHorizontalBlock"] button:hover {{
         color: #00D4FF !important;
         text-shadow: 0px 0px 10px #00D4FF;
-        transform: scale(1.1);
+        
+        /* Thay đổi ở đây: Tắt scale, Bật underline */
+        transform: none !important; 
+        text-decoration: underline !important;
+        text-underline-offset: 8px !important; /* Khoảng cách giữa chữ và gạch chân */
+        text-decoration-thickness: 3px !important; /* Độ dày nét gạch */
     }}
 
     .nav-logo {{
