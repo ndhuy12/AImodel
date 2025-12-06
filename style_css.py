@@ -20,9 +20,8 @@ def set_global_style(bg_source):
             background-image: none !important;
         """
     elif bg_source.startswith("http"):
-        # Tăng lớp phủ đen lên 50% để chữ dễ đọc hơn ngay cả khi chưa vào khung
         background_css = f"""
-            background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("{bg_source}");
+            background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("{bg_source}");
             background-size: cover;
             background-attachment: fixed;
             background-position: center;
@@ -42,24 +41,44 @@ def set_global_style(bg_source):
 
     st.markdown(f"""
     <style>
-    /* 1. Thiết lập hình nền chung */
+    @keyframes fadeOutLoader {{
+        0% {{ opacity: 1; }}
+        70% {{ opacity: 1; }} 
+        100% {{ opacity: 0; visibility: hidden; }}
+    }}
+
+    .stApp::before {{
+        content: "Loading Library...";
+        position: fixed;
+        top: 0; left: 0; width: 100vw; height: 100vh;
+        background-color: #0a0a15;
+        z-index: 999999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #ff7f50; 
+        font-size: 40px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 5px;
+        animation: fadeOutLoader 1.5s ease-in-out forwards;
+        pointer-events: none;
+    }}
+
     .stApp {{ {background_css} }}
     
-    /* 2. Màu chữ chung */
     h1, h2, h3, h4, p, span, div, label, li {{
         color: white !important;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
+        text-shadow: 2px 2px 4px #000000 !important; 
         font-weight: 500;
     }}
 
-    /* 3. Ẩn thành phần thừa */
     header {{display: none !important;}}
     [data-testid="stHeader"] {{display: none !important;}}
     .stStatusWidget, [data-testid="stStatusWidget"] {{visibility: hidden !important; display: none !important;}}
     div[data-testid="stDecoration"] {{ display: none !important; }}
     .block-container {{ padding-top: 0rem !important; margin-top: 10px !important; }}
 
-    /* 4. NAVBAR (Thanh menu): TRONG SUỐT HOÀN TOÀN */
     .nav-container {{ 
         background-color: transparent !important;
         box-shadow: none !important;
@@ -67,46 +86,27 @@ def set_global_style(bg_source):
         margin-bottom: 20px;
     }}
 
-    /* --- [PHẦN QUAN TRỌNG NHẤT] ĐỔ MÀU KHUNG TRUYỆN --- */
-    /* Target vào khung có border=True */
-    div[data-testid="stVerticalBlockBorderWrapper"] {{
-        /* Màu nền: Xanh đen rất đậm (gần như đen), độ đậm 90% */
-        background-color: #0a0a15 !important; 
-        opacity: 0.95; /* Độ chắn sáng cao */
-        
-        border: 2px solid #ff7f50 !important; /* Viền màu cam */
-        border-radius: 15px !important;
-        padding: 20px !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important; /* Bóng đổ đậm để nổi khối */
-    }}
-    
-    /* Đảm bảo chữ bên trong khung không bị mờ */
-    div[data-testid="stVerticalBlockBorderWrapper"] * {{
-        opacity: 1 !important;
-    }}
-
-    /* 5. STYLE CHO ẢNH */
-    div[data-testid="stImage"] {{ background-color: transparent !important; }}
-    div[data-testid="stImage"] > img {{ border-radius: 12px !important; }}
-
-    /* 6. NAVBAR BUTTONS (Nút bấm trong suốt, hover cam) */
     div[data-testid="stHorizontalBlock"] button {{
         background-color: transparent !important;
         border: 0px solid transparent !important;
         border-bottom: 3px solid transparent !important;
         border-radius: 0px !important;
         color: #FFFFFF !important;
-        font-size: 20px !important;
-        font-weight: 700 !important;
+        font-size: 22px !important;
+        font-weight: 900 !important;
+        text-transform: uppercase;
+        text-shadow: 3px 3px 6px rgba(0,0,0,0.9) !important;
         transition: all 0.2s ease-in-out;
-        text-decoration: none !important;
-        padding: 0 5px !important;
+        padding: 0 10px !important;
     }}
+
     div[data-testid="stHorizontalBlock"] button:hover {{
         color: #ff7f50 !important;
         border-bottom: 3px solid #ff7f50 !important;
-        text-shadow: 0px 0px 10px #ff7f50;
+        text-shadow: 0px 0px 15px #ff7f50;
+        transform: translateY(-2px);
     }}
+
     div[data-testid="stHorizontalBlock"] button:active, 
     div[data-testid="stHorizontalBlock"] button:focus {{
         background-color: transparent !important;
@@ -114,13 +114,29 @@ def set_global_style(bg_source):
         border-bottom: 3px solid #ff7f50 !important;
         box-shadow: none !important;
     }}
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {{
+        background-color: #0a0a15 !important; 
+        opacity: 0.95; 
+        border: 2px solid #ff7f50 !important;
+        border-radius: 15px !important;
+        padding: 20px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
+    }}
     
-    /* 7. MENU CON (SERVICES) */
+    div[data-testid="stVerticalBlockBorderWrapper"] * {{
+        opacity: 1 !important;
+    }}
+
+    div[data-testid="stImage"] {{ background-color: transparent !important; }}
+    div[data-testid="stImage"] > img {{ border-radius: 12px !important; }}
+
     div[data-testid="stPopoverBody"] button {{
         border: 1px solid #ff7f50 !important;
         border-radius: 8px !important;
-        background-color: rgba(0, 0, 0, 0.8) !important;
+        background-color: rgba(0, 0, 0, 0.9) !important;
         color: white !important;
+        font-weight: bold !important;
     }}
     div[data-testid="stPopoverBody"] button:hover {{
         border-color: #ff4500 !important;
@@ -128,13 +144,11 @@ def set_global_style(bg_source):
         color: #ff7f50 !important;
     }}
 
-    /* 8. NÚT PRIMARY */
     button[kind="primary"] {{
         background: linear-gradient(90deg, #ff7f50, #ff4500) !important;
         color: white !important; border: none !important;
         box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);
+        font-weight: bold !important;
     }}
-
-    .nav-logo {{ font-size: 24px; font-weight: 900; color: #fff; margin: 0; font-family: 'Arial', sans-serif; text-transform: uppercase; }}
     </style>
     """, unsafe_allow_html=True)
