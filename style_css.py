@@ -65,19 +65,19 @@ def set_global_style(bg_source):
     /* --- STYLE CHO NÚT BẤM TRÊN NAVBAR --- */
     div[data-testid="stHorizontalBlock"] button {{
         background-color: transparent !important;
-        border: none !important;
         
-        /* [QUAN TRỌNG] Tạo sẵn một viền dưới trong suốt dày 3px */
-        /* Để khi hover vào nó chỉ đổi màu chứ không làm nút nhảy lên nhảy xuống */
+        /* [SỬA LẠI] Đặt border là none trước để xóa sạch mặc định */
+        border: none !important;
+        /* Tạo viền dưới trong suốt để giữ chỗ */
         border-bottom: 3px solid transparent !important;
-        border-radius: 0 !important; /* Vuông góc để gạch chân trông sắc nét */
+        border-radius: 0 !important;
         
         color: #FFFFFF !important;
         font-size: 20px !important;
         font-weight: 700 !important;
         text-shadow: 0px 2px 5px rgba(0,0,0,0.8);
         transition: all 0.3s ease;
-        text-decoration: none !important; /* Tắt gạch chân mặc định */
+        text-decoration: none !important;
     }}
     
     /* Hiệu ứng khi di chuột (Hover) */
@@ -87,9 +87,15 @@ def set_global_style(bg_source):
         
         transform: none !important; 
         
-        /* [QUAN TRỌNG] Đổi màu viền dưới thành cam => Tạo thành gạch chân liền mạch */
-        border-bottom-color: #ff7f50 !important;
+        /* [SỬA LẠI QUAN TRỌNG] Khai báo lại đầy đủ thuộc tính border-bottom 
+           để ép buộc nó hiện ra, thay vì chỉ đổi màu */
+        border-bottom: 3px solid #ff7f50 !important;
     }}
+    
+    /* Style riêng cho cái popover (menu xổ xuống) để nó không bị ảnh hưởng */
+    div[data-testid="stPopoverBody"] button {
+        border-bottom: none !important;
+    }
 
     .nav-logo {{
         font-size: 24px; font-weight: 900; color: #fff; margin: 0; 
