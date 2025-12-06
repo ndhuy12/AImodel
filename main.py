@@ -134,14 +134,14 @@ def show_homepage():
     manga = st.session_state.random_manga_item
     if manga:
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<h3 style="text-align:center; color: #ffd700;">✨ Story of the Day</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align:center; color: #ffd700;">✨ Manga of the Day</h3>', unsafe_allow_html=True)
         
         with st.container(border=True):
             col_img, col_info = st.columns([1, 3], gap="large")
             with col_img:
                 img_url = manga.get('images', {}).get('jpg', {}).get('large_image_url')
                 if img_url: st.image(img_url, use_container_width=True)
-                st.button("🔄 Shuffle New Story", on_click=shuffle_manga, use_container_width=True)
+                st.button("🔄 Shuffle New Manga", on_click=shuffle_manga, use_container_width=True)
                 
                 manga_id = manga.get('mal_id')
                 in_fav = is_favorited(manga_id)
@@ -369,4 +369,5 @@ elif st.session_state.current_page == 'wiki': show_wiki_page()
 elif st.session_state.current_page == 'genre': show_genre_page()
 elif st.session_state.current_page == 'recommend': show_recommend_page()
 elif st.session_state.current_page == 'favorites': show_favorites_page()
+
 elif st.session_state.current_page == 'contact': show_contact_page()
