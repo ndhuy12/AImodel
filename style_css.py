@@ -60,11 +60,20 @@ def set_global_style(bg_source):
     div[data-testid="stImage"] > img {{ border-radius: 12px !important; }}
 
     .block-container {{ padding-top: 0rem !important; margin-top: 10px !important; }}
-    .nav-container {{ padding: 0; margin-bottom: 20px; }}
+    
+    /* --- [SỬA ĐỔI MỚI] STYLE CHO THANH NAVBAR --- */
+    .nav-container {{
+        padding: 10px 20px; /* Thêm khoảng cách bên trong */
+        margin-bottom: 20px;
+        background-color: rgba(0, 0, 0, 0.3); /* Lớp nền đen mờ (30%) */
+        border-radius: 15px; /* Bo góc cho đẹp */
+        backdrop-filter: blur(5px); /* Hiệu ứng làm mờ kính hiện đại */
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2); /* Thêm bóng nhẹ */
+    }}
 
     /* --- 1. STYLE CHO NÚT BẤM TRÊN NAVBAR (Menu ngang) --- */
     div[data-testid="stHorizontalBlock"] button {{
-        background-color: transparent !important;
+        /* background-color: transparent !important; -> Bỏ dòng này để nút ăn theo nền container */
         border: 0px solid transparent !important;
         border-bottom: 3px solid transparent !important;
         border-radius: 0px !important;
@@ -88,16 +97,15 @@ def set_global_style(bg_source):
 
     div[data-testid="stHorizontalBlock"] button:active, 
     div[data-testid="stHorizontalBlock"] button:focus {{
-        background-color: transparent !important;
+        /* background-color: transparent !important; -> Bỏ dòng này */
         color: #ff7f50 !important;
         border-bottom: 3px solid #ff7f50 !important;
         box-shadow: none !important;
     }}
     
     /* --- 2. STYLE CHO CÁC KHỐI NÚT TRONG MENU SERVICES (Popover) --- */
-    /* Đây là đoạn chỉnh viền xanh thành viền cam */
     div[data-testid="stPopoverBody"] button {{
-        border: 2px solid #ff7f50 !important; /* Viền cam */
+        border: 2px solid #ff7f50 !important;
         border-radius: 10px !important;
         color: white !important;
         transition: all 0.3s;
@@ -105,14 +113,14 @@ def set_global_style(bg_source):
     }}
 
     div[data-testid="stPopoverBody"] button:hover {{
-        border-color: #ff4500 !important; /* Cam đậm hơn khi hover */
-        background-color: rgba(255, 127, 80, 0.2) !important; /* Nền cam mờ khi hover */
+        border-color: #ff4500 !important;
+        background-color: rgba(255, 127, 80, 0.2) !important;
         color: #ff7f50 !important;
     }}
 
-    /* --- 3. STYLE CHO NÚT PRIMARY (Gradient Cam) --- */
+    /* --- 3. STYLE CHO NÚT PRIMARY --- */
     button[kind="primary"] {{
-        background: linear-gradient(90deg, #ff7f50, #ff4500) !important; /* Gradient Cam */
+        background: linear-gradient(90deg, #ff7f50, #ff4500) !important;
         color: white !important; border: none !important;
         box-shadow: 0 4px 15px rgba(255, 69, 0, 0.4);
     }}
@@ -120,6 +128,7 @@ def set_global_style(bg_source):
     .nav-logo {{
         font-size: 24px; font-weight: 900; color: #fff; margin: 0; 
         font-family: 'Arial', sans-serif; text-transform: uppercase;
+        padding-left: 10px; /* Thêm chút khoảng cách cho logo */
     }}
     </style>
     """, unsafe_allow_html=True)
