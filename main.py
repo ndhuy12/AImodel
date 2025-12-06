@@ -1,23 +1,181 @@
 import streamlit as st
 import google.generativeai as genai
 import requests
+from PIL import Image
+import time
 
-# Import custom modules
-from style_css import set_global_style
-from jikan_services import get_genre_map, get_character_data, get_one_character_data, get_random_manga_data
-from ai_service import ai_vision_detect, generate_ai_stream
-
-# # Configuration
 st.set_page_config(page_title="ITOOK Library", layout="wide", page_icon="📚")
 
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
 except:
-    API_KEY = "AIzaSyDS4IfeA-9eXbn-C9J3m4PFqDyU7L1s4CY" # Lưu ý: Nên bảo mật API Key này
+    API_KEY = "AIzaSyDS4IfeA-9eXbn-C9J3m4PFqDyU7L1s4CY"
 
 genai.configure(api_key=API_KEY)
 
-# # State Management
+def set_global_style(image_url):
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background-image: url("{image_url}");
+        background-attachment: fixed;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }}
+    
+    header {{display: none !important;}}
+    [data-testid="stHeader"] {{display: none !important;}}
+    .stStatusWidget, [data-testid="stStatusWidget"] {{
+        visibility: hidden !important;
+        display: none !important;
+        height: 0 !important;
+        opacity: 0 !important;
+    }}
+    div[data-testid="stDecoration"] {{display: none !important;}}
+
+    .block-container {{
+        padding-top: 4rem !important; 
+        padding-bottom: 3rem !important;
+        max-width: 100% !important;
+    }}
+
+    .nav-container {{
+        background: transparent !important;
+        padding: 0; margin-bottom: 20px;
+    }}
+
+    div[data-testid="stHorizontalBlock"] button {{
+        background-color: transparent !important;
+        border: none !important;
+        color: #FFFFFF !important;
+        font-size: 18px !important;
+        font-weight: 900 !important;
+        font-family: 'Arial Black', sans-serif !important;
+        text-shadow: 2px 2px 4px #000000;
+        transition: all 0.3s ease;
+        padding: 0px 15px !important;
+    }}
+    
+    div[data-testid="stHorizontalBlock"] button:hover {{
+        color: #00D4FF !important;
+        text-shadow: 0px 0px 15px #00D4FF;
+        transform: scale(1.1);
+    }}
+    
+    .nav-logo {{
+        font-size: 28px;
+        font-weight: 900;
+        color: #fff; margin: 0; 
+        font-family: 'Arial Black', sans-serif;
+        text-transform: uppercase;
+        text-shadow: 3px 3px 6px #000;
+        letter-spacing: 1px;
+    }}
+
+    h1, h2, h3, h4, p, span, div, label, li {{
+        color: white !important;
+        text-shadow: 2px 2px 6px #000000 !important;
+        font-weight: 700 !important;
+    }}
+    
+    h1 {{
+        font-weight: 900 !important;
+        font-family: 'Arial Black', sans-serif !important;
+        font-size: 3rem !important;
+    }}
+
+    div[data-baseweb="tab"] div p {{
+        font-weight: 900 !important;
+        font-size: 18px !important;
+    }}
+
+    .stTextInput input {{ 
+        color: black !important; 
+        font-weight: 700 !important;
+        text-shadow: none !important; 
+    }}
+    .stTextInput > div > div {{ 
+        background-color: rgba(255,255,255,0.95) !important; 
+    }}
+    
+    button[kind="primary"] {{
+        background: linear-gradient(90deg, #00D4FF, #005Bea) !important;
+        color: white !important; 
+        border: none !important; 
+        font-weight: 900 !important;
+        font-size: 16px !important;
+        box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+    }}
+    
+    .content-box {{ background: transparent !important; border: none !important; }}
+    </style>
+    """, unsafe_allow_html=True)
+
+@st.cache_data(ttl=3600)
+def get_genre_map(content_type="anime"):
+    url = f"https://api.jikan.moe/v4/genres/{content_type}"
+    try:
+        r = requests.get(url)
+        if r.status_code == 200:
+            return {item['name']: item['mal_id'] for item in r.json().get('data', [])}
+        return {}
+    except: return {}
+
+@st.cache_data(ttl=3600)
+def get_character_data(name):
+    url = f"https://api.jikan.moe/v4/characters?q={name}&limit=10"
+    try:
+        r = requests.get(url)
+        if r.status_code == 200: return r.json().get('data', [])
+        return []
+    except: return []
+
+def get_one_character_data(name):
+    res = get_character_data(name)
+    return res[0] if res else None
+
+def get_random_manga_data():
+    url = "https://api.jikan.moe/v4/random/manga"
+    try:
+        r = requests.get(url)
+        if r.status_code == 200:
+            return r.json().get('data')
+        return None
+    except: return None
+
+def ai_vision_detect(image):
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    prompt = "Look at this anime character. Return ONLY the full name. If unsure, return 'Unknown'."
+    try:
+        res = model.generate_content([prompt, image])
+        return res.text.strip()
+    except: return "Unknown"
+
+def generate_ai_stream(info):
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    name = info.get('name', 'N/A')
+    about = info.get('about', 'N/A')
+    if about and len(about) > 2000: about = about[:2000] + "..."
+
+    prompt = f"""
+    You are an expert Anime Otaku. Write an engaging profile for this character in ENGLISH.
+    Character Name: {name}
+    Bio Data: {about}
+    
+    Requirements:
+    1. Catchy Title.
+    2. Fun and enthusiastic tone (use emojis 🌟🔥).
+    3. Analyze personality & powers.
+    4. Keep it under 200 words.
+    """
+    return model.generate_content(prompt, stream=True)
+
+def parse_gemini_stream(stream):
+    for chunk in stream:
+        if chunk.text:
+            yield chunk.text
+
 if 'current_page' not in st.session_state:
     st.session_state.current_page = 'home'
 if 'favorites' not in st.session_state:
@@ -36,7 +194,6 @@ def navigate_to(page):
     st.session_state.current_page = page
     st.rerun()
 
-# # Favorites Logic
 def is_favorited(manga_id):
     for item in st.session_state.favorites:
         if item['mal_id'] == manga_id:
@@ -47,7 +204,7 @@ def toggle_favorite(manga_data):
     manga_id = manga_data.get('mal_id')
     if is_favorited(manga_id):
         st.session_state.favorites = [item for item in st.session_state.favorites if item['mal_id'] != manga_id]
-        st.toast(f"💔 Removed '{manga_data.get('title')}' from Favorites", icon="🗑️")
+        st.toast(f"💔 Removed '{manga_data.get('title')}'", icon="🗑️")
     else:
         fav_item = {
             'mal_id': manga_id,
@@ -59,9 +216,8 @@ def toggle_favorite(manga_data):
             'type': manga_data.get('type', 'Manga')
         }
         st.session_state.favorites.append(fav_item)
-        st.toast(f"❤️ Added '{manga_data.get('title')}' to Favorites", icon="✅")
+        st.toast(f"❤️ Added '{manga_data.get('title')}'", icon="✅")
 
-# # Navigation bar
 def show_navbar():
     with st.container():
         st.markdown('<div class="nav-container"></div>', unsafe_allow_html=True)
@@ -81,9 +237,8 @@ def show_navbar():
             if st.button("Contact", use_container_width=True): navigate_to('contact')
     st.write("")
 
-# # Homepage
 def show_homepage():
-    set_global_style("test.jpg") 
+    set_global_style("https://wallpapers.com/images/hd/library-background-4k-q0t2b8j0d1l1y5z3.jpg")
     show_navbar() 
     
     st.markdown("""
@@ -96,19 +251,22 @@ def show_homepage():
             text-align: center;
             text-shadow: 3px 3px 6px rgba(0,0,0,0.8) !important; 
             margin-top: 20px;
+            font-weight: 900 !important;
         }
         .hero-subtitle {
-            font-family: 'Arial', sans-serif; font-size: 24px !important; color: #e0e0e0 !important;
-            text-align: center; margin-top: -20px; margin-bottom: 40px; font-style: italic;
+            font-family: 'Arial Black', sans-serif !important; 
+            font-size: 24px !important; color: #e0e0e0 !important;
+            text-align: center; margin-top: -20px; margin-bottom: 40px; 
+            font-weight: 700 !important;
         }
         div.stButton > button {
-            height: 100px; font-size: 18px; font-weight: bold; 
+            height: 100px; font-size: 20px; font-weight: 900; 
             border-radius: 15px; border: 2px solid #00D4FF; transition: all 0.3s;
+            font-family: 'Arial Black', sans-serif !important;
         }
         div.stButton > button:hover {
             background-color: rgba(0, 212, 255, 0.1); transform: translateY(-5px);
         }
-        div[data-testid="stHorizontalBlock"] button { height: auto !important; border: none !important; }
         </style>
     """, unsafe_allow_html=True)
     
@@ -123,7 +281,6 @@ def show_homepage():
     with c3:
         if st.button("🤖 AI RECOMMENDATION", use_container_width=True): navigate_to('recommend')
 
-    # Daily Pick Section
     if st.session_state.random_manga_item is None:
         st.session_state.random_manga_item = get_random_manga_data()
 
@@ -133,7 +290,7 @@ def show_homepage():
     manga = st.session_state.random_manga_item
     if manga:
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<h3 style="text-align:center; color: #ffd700;">✨ Manga of the Day</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align:center; color: #ffd700; font-weight:900;">✨ Manga of the Day</h3>', unsafe_allow_html=True)
         
         with st.container(border=True):
             col_img, col_info = st.columns([1, 3], gap="large")
@@ -160,9 +317,8 @@ def show_homepage():
                 
                 if manga.get('url'): st.markdown(f"[📖 Read more on MyAnimeList]({manga.get('url')})")
 
-# # Pages Logic
 def show_genre_page():
-    set_global_style("test4.jpg")
+    set_global_style("https://images3.alphacoders.com/812/thumb-1920-812062.png")
     show_navbar()
     
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
@@ -244,7 +400,7 @@ def show_favorites_page():
                         st.rerun()
 
 def show_wiki_page():
-    set_global_style("test3.jpg")
+    set_global_style("https://images.alphacoders.com/605/thumb-1920-605592.png")
     show_navbar()
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("🕵️ Character Wiki & Vision")
@@ -353,7 +509,7 @@ def show_wiki_page():
             display_final_result()
 
 def show_recommend_page():
-    set_global_style("test1.png")
+    set_global_style("https://images.alphacoders.com/133/thumb-1920-1330275.png")
     show_navbar()
     st.markdown('<div class="content-box"><h2>🤖 AI Recommend (Coming Soon)</h2></div>', unsafe_allow_html=True)
 
@@ -362,17 +518,9 @@ def show_contact_page():
     show_navbar()
     st.markdown('<div class="content-box"><h2>📞 Contact Us</h2></div>', unsafe_allow_html=True)
 
-# # Router
 if st.session_state.current_page == 'home': show_homepage()
 elif st.session_state.current_page == 'wiki': show_wiki_page()
 elif st.session_state.current_page == 'genre': show_genre_page()
 elif st.session_state.current_page == 'recommend': show_recommend_page()
 elif st.session_state.current_page == 'favorites': show_favorites_page()
-
 elif st.session_state.current_page == 'contact': show_contact_page()
-
-
-
-
-
-
