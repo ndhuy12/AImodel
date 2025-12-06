@@ -41,6 +41,8 @@ def set_global_style(bg_source):
 
     st.markdown(f"""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap');
+
     @keyframes fadeOutLoader {{
         0% {{ opacity: 1; }}
         70% {{ opacity: 1; }} 
@@ -67,6 +69,18 @@ def set_global_style(bg_source):
 
     .stApp {{ {background_css} }}
     
+    .logo-text {{
+        font-family: 'Montserrat', 'Arial Black', sans-serif !important;
+        font-size: 35px !important;
+        font-weight: 900 !important;
+        color: #FFFFFF !important;
+        text-shadow: 4px 4px 0px #ff7f50;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1.2 !important;
+        letter-spacing: -1px;
+    }}
+
     h1, h2, h3, h4, p, span, div, label, li {{
         color: white !important;
         text-shadow: 2px 2px 4px #000000 !important; 
@@ -92,19 +106,19 @@ def set_global_style(bg_source):
         border-bottom: 3px solid transparent !important;
         border-radius: 0px !important;
         color: #FFFFFF !important;
-        font-size: 22px !important;
-        font-weight: 900 !important;
+        font-size: 20px !important;
+        font-weight: 800 !important;
         text-transform: uppercase;
-        text-shadow: 3px 3px 6px rgba(0,0,0,0.9) !important;
-        transition: all 0.2s ease-in-out;
+        text-shadow: 2px 2px 4px #000000 !important;
+        transition: all 0.3s ease;
         padding: 0 10px !important;
     }}
 
     div[data-testid="stHorizontalBlock"] button:hover {{
         color: #ff7f50 !important;
+        transform: scale(1.1);
+        text-shadow: 0 0 10px #ff7f50, 2px 2px 4px #000000 !important;
         border-bottom: 3px solid #ff7f50 !important;
-        text-shadow: 0px 0px 15px #ff7f50;
-        transform: translateY(-2px);
     }}
 
     div[data-testid="stHorizontalBlock"] button:active, 
