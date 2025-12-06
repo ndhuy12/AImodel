@@ -225,7 +225,7 @@ def show_favorites_page():
     st.title("❤️ My Favorites Collection")
     
     if not st.session_state.favorites:
-        st.info("Your collection is empty. Go explore and add some stories!")
+        st.info("Your collection is empty. Go explore and add some animes/mangas!")
     else:
         st.write(f"You have **{len(st.session_state.favorites)}** items in your library.")
         st.markdown("---")
@@ -370,6 +370,7 @@ elif st.session_state.current_page == 'recommend': show_recommend_page()
 elif st.session_state.current_page == 'favorites': show_favorites_page()
 
 elif st.session_state.current_page == 'contact': show_contact_page()
+
 
 
 
