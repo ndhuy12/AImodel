@@ -62,6 +62,7 @@ def set_global_style(bg_source):
     .block-container {{ padding-top: 0rem !important; margin-top: 10px !important; }}
     .nav-container {{ padding: 0; margin-bottom: 20px; }}
 
+    /* --- 1. STYLE CHO NÚT BẤM TRÊN NAVBAR (Menu ngang) --- */
     div[data-testid="stHorizontalBlock"] button {{
         background-color: transparent !important;
         border: 0px solid transparent !important;
@@ -79,7 +80,7 @@ def set_global_style(bg_source):
     }}
     
     div[data-testid="stHorizontalBlock"] button:hover {{
-        color: #ff7f50 !important;
+        color: #ff7f50 !important; /* Màu cam */
         text-shadow: 0px 0px 10px #ff7f50;
         transform: none !important;
         border-bottom: 3px solid #ff7f50 !important;
@@ -93,19 +94,32 @@ def set_global_style(bg_source):
         box-shadow: none !important;
     }}
     
+    /* --- 2. STYLE CHO CÁC KHỐI NÚT TRONG MENU SERVICES (Popover) --- */
+    /* Đây là đoạn chỉnh viền xanh thành viền cam */
     div[data-testid="stPopoverBody"] button {{
-        border-bottom: none !important;
+        border: 2px solid #ff7f50 !important; /* Viền cam */
+        border-radius: 10px !important;
+        color: white !important;
+        transition: all 0.3s;
+        background-color: rgba(0,0,0,0.5) !important;
+    }}
+
+    div[data-testid="stPopoverBody"] button:hover {{
+        border-color: #ff4500 !important; /* Cam đậm hơn khi hover */
+        background-color: rgba(255, 127, 80, 0.2) !important; /* Nền cam mờ khi hover */
+        color: #ff7f50 !important;
+    }}
+
+    /* --- 3. STYLE CHO NÚT PRIMARY (Gradient Cam) --- */
+    button[kind="primary"] {{
+        background: linear-gradient(90deg, #ff7f50, #ff4500) !important; /* Gradient Cam */
+        color: white !important; border: none !important;
+        box-shadow: 0 4px 15px rgba(255, 69, 0, 0.4);
     }}
 
     .nav-logo {{
         font-size: 24px; font-weight: 900; color: #fff; margin: 0; 
         font-family: 'Arial', sans-serif; text-transform: uppercase;
-    }}
-    
-    button[kind="primary"] {{
-        background: linear-gradient(90deg, #00D4FF, #005Bea) !important;
-        color: white !important; border: none !important;
-        box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
     }}
     </style>
     """, unsafe_allow_html=True)
