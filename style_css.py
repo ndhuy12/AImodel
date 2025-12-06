@@ -53,7 +53,7 @@ def set_global_style(bg_source):
         font-weight: 500;
     }}
 
-    /* 3. Ẩn các thành phần mặc định thừa */
+    /* 3. Ẩn các thành phần thừa */
     header {{display: none !important;}}
     [data-testid="stHeader"] {{display: none !important;}}
     .stStatusWidget, [data-testid="stStatusWidget"] {{visibility: hidden !important; display: none !important;}}
@@ -63,10 +63,10 @@ def set_global_style(bg_source):
     div[data-testid="stImage"] {{ background-color: transparent !important; }}
     div[data-testid="stImage"] > img {{ border-radius: 12px !important; }}
 
-    /* 5. Căn chỉnh lề trên */
+    /* 5. Căn chỉnh lề */
     .block-container {{ padding-top: 0rem !important; margin-top: 10px !important; }}
     
-    /* 6. NAVBAR CONTAINER: TRONG SUỐT (Theo ý bạn) */
+    /* 6. NAVBAR CONTAINER: TRONG SUỐT */
     .nav-container {{ 
         padding: 0; 
         margin-bottom: 20px; 
@@ -75,14 +75,18 @@ def set_global_style(bg_source):
         backdrop-filter: none !important;
     }}
 
-    /* --- [QUAN TRỌNG] ĐỔ MÀU ĐEN NHẠT VÀO KHỐI NỘI DUNG --- */
+    /* --- [CẬP NHẬT] ĐỔ MÀU ĐẬM RÕ RÀNG CHO KHỐI NỘI DUNG --- */
     /* Target vào các khối st.container(border=True) */
     div[data-testid="stVerticalBlockBorderWrapper"] {{
-        background-color: rgba(0, 0, 0, 0.4) !important; /* Màu đen mờ 40% (Rất nhạt) */
+        /* Màu đen mờ 70% (Đậm hơn nhiều để thấy rõ sự khác biệt) */
+        background-color: rgba(0, 0, 0, 0.7) !important; 
+        
         border-radius: 15px !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important; /* Viền trắng mờ nhẹ cho sang */
-        padding: 20px !important;
-        backdrop-filter: blur(5px); /* Làm mờ nhẹ phần nền phía sau khối */
+        /* Viền màu cam nhạt để làm nổi bật khối */
+        border: 2px solid rgba(255, 127, 80, 0.4) !important; 
+        
+        padding: 25px !important;
+        backdrop-filter: blur(10px); /* Làm mờ mạnh hình nền phía sau */
     }}
     
     /* Xử lý riêng cho các nút trong Navbar (Trong suốt) */
