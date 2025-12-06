@@ -79,7 +79,7 @@ def set_global_style(bg_source):
     /* Target vào các khối st.container(border=True) */
     div[data-testid="stVerticalBlockBorderWrapper"] {{
         /* Màu đen mờ 70% (Đậm hơn nhiều để thấy rõ sự khác biệt) */
-        background-color: rgba(0, 0, 0, 0.7) !important; 
+        background-color: rgba(0, 0, 0, 1) !important; 
         
         border-radius: 15px !important;
         /* Viền màu cam nhạt để làm nổi bật khối */
@@ -147,3 +147,4 @@ def set_global_style(bg_source):
     }}
     </style>
     """, unsafe_allow_html=True)
+
