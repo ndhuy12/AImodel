@@ -84,7 +84,7 @@ def show_navbar():
 
 # # Homepage
 def show_homepage():
-    set_global_style("home_bg.jpg") 
+    set_global_style("#102C57") 
     show_navbar() 
     
     st.markdown("""
@@ -371,3 +371,4 @@ elif st.session_state.current_page == 'recommend': show_recommend_page()
 elif st.session_state.current_page == 'favorites': show_favorites_page()
 
 elif st.session_state.current_page == 'contact': show_contact_page()
+
