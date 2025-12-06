@@ -21,7 +21,7 @@ def set_global_style(bg_source):
         """
     elif bg_source.startswith("http"):
         background_css = f"""
-            background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("{bg_source}");
+            background-image: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url("{bg_source}");
             background-size: cover;
             background-attachment: fixed;
             background-position: center;
@@ -41,58 +41,56 @@ def set_global_style(bg_source):
 
     st.markdown(f"""
     <style>
+    /* 1. Thiết lập hình nền chung */
     .stApp {{
         {background_css}
     }}
     
+    /* 2. Màu chữ chung */
     h1, h2, h3, h4, p, span, div, label, li {{
         color: white !important;
-        text-shadow: 2px 2px 6px #000000 !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
         font-weight: 500;
     }}
 
+    /* 3. Ẩn các thành phần mặc định thừa */
     header {{display: none !important;}}
     [data-testid="stHeader"] {{display: none !important;}}
     .stStatusWidget, [data-testid="stStatusWidget"] {{visibility: hidden !important; display: none !important;}}
     div[data-testid="stDecoration"] {{ display: none !important; }}
 
+    /* 4. Style cho ảnh */
     div[data-testid="stImage"] {{ background-color: transparent !important; }}
     div[data-testid="stImage"] > img {{ border-radius: 12px !important; }}
 
-    /* --- [ĐÃ SỬA LẠI] NAV-CONTAINER TRONG SUỐT --- */
+    /* 5. Căn chỉnh lề trên */
     .block-container {{ padding-top: 0rem !important; margin-top: 10px !important; }}
+    
+    /* 6. NAVBAR CONTAINER: TRONG SUỐT (Theo ý bạn) */
     .nav-container {{ 
         padding: 0; 
         margin-bottom: 20px; 
-        background-color: transparent !important; /* Trả về trong suốt */
+        background-color: transparent !important;
         box-shadow: none !important;
         backdrop-filter: none !important;
     }}
 
-    /* --- [MỚI] STYLE CHO CÁC KHỐI NỘI DUNG (Manga of the Day, Favorites...) --- */
-    /* Nhắm mục tiêu vào các st.container(border=True) */
+    /* --- [QUAN TRỌNG] ĐỔ MÀU ĐEN NHẠT VÀO KHỐI NỘI DUNG --- */
+    /* Target vào các khối st.container(border=True) */
     div[data-testid="stVerticalBlockBorderWrapper"] {{
-        background-color: rgba(0, 0, 0, 0.7) !important; /* Nền đen mờ 70% */
+        background-color: rgba(0, 0, 0, 0.4) !important; /* Màu đen mờ 40% (Rất nhạt) */
         border-radius: 15px !important;
-        border: 1px solid rgba(255, 127, 80, 0.3) !important; /* Viền cam nhẹ */
-        padding: 25px !important; /* Tăng khoảng cách bên trong */
-        backdrop-filter: blur(10px); /* Làm mờ nền phía sau khối */
+        border: 1px solid rgba(255, 255, 255, 0.2) !important; /* Viền trắng mờ nhẹ cho sang */
+        padding: 20px !important;
+        backdrop-filter: blur(5px); /* Làm mờ nhẹ phần nền phía sau khối */
     }}
-    /* Loại bỏ bóng chữ bên trong khối tối để dễ đọc hơn */
-    div[data-testid="stVerticalBlockBorderWrapper"] p,
-    div[data-testid="stVerticalBlockBorderWrapper"] h2,
-    div[data-testid="stVerticalBlockBorderWrapper"] span {{
-        text-shadow: none !important;
-    }}
-
-
-    /* --- STYLE CHO NÚT BẤM TRÊN NAVBAR (Menu ngang) --- */
+    
+    /* Xử lý riêng cho các nút trong Navbar (Trong suốt) */
     div[data-testid="stHorizontalBlock"] button {{
-        background-color: transparent !important; /* Nút trong suốt */
+        background-color: transparent !important;
         border: 0px solid transparent !important;
         border-bottom: 3px solid transparent !important;
         border-radius: 0px !important;
-        
         color: #FFFFFF !important;
         font-size: 20px !important;
         font-weight: 700 !important;
@@ -104,10 +102,10 @@ def set_global_style(bg_source):
     }}
     
     div[data-testid="stHorizontalBlock"] button:hover {{
-        color: #ff7f50 !important; /* Màu cam */
+        color: #ff7f50 !important;
         text-shadow: 0px 0px 10px #ff7f50;
         transform: none !important;
-        border-bottom: 3px solid #ff7f50 !important; /* Gạch chân cam */
+        border-bottom: 3px solid #ff7f50 !important;
     }}
 
     div[data-testid="stHorizontalBlock"] button:active, 
@@ -118,26 +116,25 @@ def set_global_style(bg_source):
         box-shadow: none !important;
     }}
     
-    /* --- STYLE CHO CÁC KHỐI NÚT TRONG MENU SERVICES (Popover) --- */
+    /* Menu con (Services) */
     div[data-testid="stPopoverBody"] button {{
-        border: 2px solid #ff7f50 !important;
-        border-radius: 10px !important;
+        border: 1px solid #ff7f50 !important;
+        border-radius: 8px !important;
         color: white !important;
         transition: all 0.3s;
-        background-color: rgba(0,0,0,0.5) !important;
+        background-color: rgba(0, 0, 0, 0.6) !important;
     }}
-
     div[data-testid="stPopoverBody"] button:hover {{
         border-color: #ff4500 !important;
-        background-color: rgba(255, 127, 80, 0.2) !important;
+        background-color: rgba(255, 127, 80, 0.3) !important;
         color: #ff7f50 !important;
     }}
 
-    /* --- STYLE CHO NÚT PRIMARY --- */
+    /* Nút chính (Primary) */
     button[kind="primary"] {{
         background: linear-gradient(90deg, #ff7f50, #ff4500) !important;
         color: white !important; border: none !important;
-        box-shadow: 0 4px 15px rgba(255, 69, 0, 0.4);
+        box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);
     }}
 
     .nav-logo {{
