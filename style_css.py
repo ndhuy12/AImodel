@@ -129,7 +129,7 @@ def set_global_style(bg_source):
     }}
     
     /* Inputs */
-    .stTextInput input, .stSelectbox div[data-testid="stMarkdownContainer"], .stTextArea textarea {{
+    .stTextArea textarea {{
         background-color: rgba(0,0,0,0.7) !important;
         color: white !important;
         border: 1px solid #444 !important;
@@ -166,3 +166,4 @@ def set_global_style(bg_source):
     }}
     </style>
     """, unsafe_allow_html=True)
+
