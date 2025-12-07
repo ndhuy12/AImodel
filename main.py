@@ -158,7 +158,7 @@ def show_navbar():
                 if st.button("🤖 AI Recommend", use_container_width=True): navigate_to('recommend')
         
         with col4:
-            if st.button("❤️ FAVORITES", use_container_width=True): navigate_to('favorites')
+            if st.button("FAVORITES", use_container_width=True): navigate_to('favorites')
         
         with col5:
             if st.button("ADVANCES", use_container_width=True, key="advances_btn"):
