@@ -3,13 +3,20 @@ import base64
 import os
 
 def get_base64_of_bin_file(filename):
-    file_path = os.path.join(os.getcwd(), "resources", filename)
+    # Thử tìm file trực tiếp, nếu không thấy thì thử trong thư mục resources
     try:
-        with open(file_path, 'rb') as f:
+        with open(filename, 'rb') as f:
             data = f.read()
         return base64.b64encode(data).decode()
     except FileNotFoundError:
-        return None
+        try:
+            # Fallback cho trường hợp để trong thư mục resources
+            file_path = os.path.join(os.getcwd(), "resources", filename)
+            with open(file_path, 'rb') as f:
+                data = f.read()
+            return base64.b64encode(data).decode()
+        except FileNotFoundError:
+            return None
 
 def set_global_style(bg_source):
     background_css = ""
@@ -37,6 +44,7 @@ def set_global_style(bg_source):
                 background-position: center;
             """
         else:
+            # Màu nền mặc định nếu không tìm thấy ảnh
             background_css = "background-color: #0e1117;"
 
     st.markdown(f"""
@@ -146,24 +154,33 @@ def set_global_style(bg_source):
     button[kind="primary"]:hover {{
         transform: scale(1.02);
     }}
-
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 20px;
-    }}
-    .stTabs [data-baseweb="tab"] {{
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: rgba(0,0,0,0.5);
-        border-radius: 5px;
-        color: white;
-        border: 1px solid transparent;
-    }}
-    .stTabs [aria-selected="true"] {{
-        background-color: #ff7f50 !important;
-        color: white !important;
-        font-weight: bold;
-    }}
     </style>
     """, unsafe_allow_html=True)
 
+# --- CÁC HÀM CẦN THIẾT CHO MAIN.PY ---
+# Chúng ta tạo wrapper để main.py gọi được mà không bị lỗi
+
+def set_background_image(bg_source):
+    """Hàm này main.py đang gọi, ta chuyển tiếp nó sang set_global_style"""
+    set_global_style(bg_source)
+
+def add_corner_gif():
+    """Thêm lại hàm này vì main.py đang gọi nó"""
+    st.markdown(
+        """
+        <style>
+        .corner-gif {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 100px;
+            height: auto;
+            z-index: 999999;
+            opacity: 0.8;
+            pointer-events: none;
+        }
+        </style>
+        <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjR5aHdhbmV4YjZ5Y3Z6eXQ5YnZ6Y3Z6eXQ5YnZ6Y3Z6eXQ5YiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/13CoXDiaCcCzp6/giphy.gif" class="corner-gif">
+        """,
+        unsafe_allow_html=True
+    )
