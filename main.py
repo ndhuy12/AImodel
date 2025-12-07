@@ -1,6 +1,9 @@
 import streamlit as st
 import google.generativeai as genai
 import requests
+import json
+import re
+from datetime import datetime
 
 from style_css import set_global_style
 from jikan_services import get_genre_map, get_character_data, get_one_character_data, get_random_manga_data
@@ -8,58 +11,143 @@ from ai_service import ai_vision_detect, generate_ai_stream
 
 st.set_page_config(page_title="ITOOK Library", layout="wide", page_icon="📚")
 
+# --- CONFIGURATION ---
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
 except:
+    # Please replace with your actual key if secrets fail
     API_KEY = "AIzaSyDS4IfeA-9eXbn-C9J3m4PFqDyU7L1s4CY"
 
 genai.configure(api_key=API_KEY)
 
+# --- SESSION STATE INITIALIZATION ---
 if 'current_page' not in st.session_state:
     st.session_state.current_page = 'home'
+
+# Initialize split favorites if not exists
 if 'favorites' not in st.session_state:
-    st.session_state.favorites = [] 
+    st.session_state.favorites = {'media': [], 'characters': []} # media = anime/manga/book
+elif isinstance(st.session_state.favorites, list):
+    # Migration for old users (convert list to dict)
+    old_favs = st.session_state.favorites
+    st.session_state.favorites = {'media': [], 'characters': []}
+    for item in old_favs:
+        # Simple guess: if it has 'type' and it's not 'Character', goes to media
+        if item.get('type') == 'Character':
+            st.session_state.favorites['characters'].append(item)
+        else:
+            st.session_state.favorites['media'].append(item)
+
+if 'search_history' not in st.session_state:
+    st.session_state.search_history = []
 if 'random_manga_item' not in st.session_state:
     st.session_state.random_manga_item = None
+if 'recommendations' not in st.session_state:
+    st.session_state.recommendations = None
+
+# --- HELPER FUNCTIONS ---
 
 def navigate_to(page):
+    # Reset search states when leaving pages
     if page == 'wiki':
         st.session_state.wiki_search_results = None
         st.session_state.wiki_ai_analysis = None
         st.session_state.wiki_selected_char = None
         st.session_state.search_source = None
-        if 'search_input' in st.session_state:
-            st.session_state.search_input = ""
     st.session_state.current_page = page
     st.rerun()
 
-def is_favorited(manga_id):
-    for item in st.session_state.favorites:
-        if item['mal_id'] == manga_id:
+def add_to_history(action_type, query, details=None):
+    """Add an action to the history log"""
+    entry = {
+        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'type': action_type,
+        'query': query,
+        'details': details
+    }
+    st.session_state.search_history.insert(0, entry)
+    # Keep last 50 entries
+    if len(st.session_state.search_history) > 50:
+        st.session_state.search_history = st.session_state.search_history[:50]
+
+def is_favorited(item_id, category):
+    """Check if item is in favorites list of specific category"""
+    for item in st.session_state.favorites[category]:
+        # Support both 'mal_id' (jikan) and 'id' (generic)
+        current_id = item.get('mal_id') or item.get('id')
+        if str(current_id) == str(item_id):
             return True
     return False
 
-def toggle_favorite(manga_data):
-    manga_id = manga_data.get('mal_id')
-    if is_favorited(manga_id):
-        st.session_state.favorites = [item for item in st.session_state.favorites if item['mal_id'] != manga_id]
-        st.toast(f"💔 Removed '{manga_data.get('title')}' from Favorites", icon="🗑️")
+def toggle_favorite(data, category='media'):
+    """
+    Toggle favorite status.
+    category: 'media' (anime/manga) or 'characters'
+    """
+    item_id = data.get('mal_id') or data.get('id')
+    title_name = data.get('title') or data.get('name') or data.get('title_english')
+    
+    if is_favorited(item_id, category):
+        # Remove
+        st.session_state.favorites[category] = [
+            i for i in st.session_state.favorites[category] 
+            if str(i.get('mal_id') or i.get('id')) != str(item_id)
+        ]
+        st.toast(f"💔 Removed '{title_name}' from Favorites", icon="🗑️")
     else:
+        # Add
         fav_item = {
-            'mal_id': manga_id,
-            'title': manga_data.get('title'),
-            'title_english': manga_data.get('title_english'),
-            'image_url': manga_data.get('images', {}).get('jpg', {}).get('image_url'),
-            'score': manga_data.get('score'),
-            'url': manga_data.get('url'),
-            'type': manga_data.get('type', 'Manga')
+            'mal_id': item_id,
+            'title': title_name, # Standardize display name
+            'image_url': data.get('images', {}).get('jpg', {}).get('image_url') or data.get('image_url'),
+            'score': data.get('score'),
+            'url': data.get('url'),
+            'type': data.get('type', 'Unknown'),
+            'added_at': datetime.now().strftime("%Y-%m-%d")
         }
-        st.session_state.favorites.append(fav_item)
-        st.toast(f"❤️ Added '{manga_data.get('title')}' to Favorites", icon="✅")
+        st.session_state.favorites[category].append(fav_item)
+        st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
+
+def get_ai_recommendations(age, interests, mood, style, content_type):
+    """Call Gemini for recommendations"""
+    prompt = f"""
+    You are an expert Otaku and Librarian. 
+    User Profile:
+    - Age: {age}
+    - Mood: {mood}
+    - Interests/Hobbies: {interests}
+    - Preferred Style: {style}
+    
+    Task: Recommend 5 best {content_type}s that perfectly match this profile.
+    
+    Return STRICTLY a JSON array with this format (no markdown, no extra text):
+    [
+      {{
+        "title": "Title of work",
+        "reason": "Why it fits the user (2 sentences max)",
+        "genre": "Main Genre",
+        "search_keyword": "Keyword to search this on database"
+      }}
+    ]
+    """
+    try:
+        model = genai.GenerativeModel('gemini-2.0-flash-exp') # Or gemini-1.5-flash
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+        # Clean potential markdown code blocks
+        if text.startswith("```json"): text = text[7:-3]
+        elif text.startswith("```"): text = text[3:-3]
+        return json.loads(text)
+    except Exception as e:
+        st.error(f"AI Error: {e}")
+        return None
+
+# --- UI COMPONENTS ---
 
 def show_navbar():
     with st.container():
-        col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1], gap="small", vertical_alignment="center")
+        # Adjusted columns for History button
+        col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 1, 1, 1], gap="small", vertical_alignment="center")
         
         with col1: 
             st.markdown('<p class="logo-text">ITOOK Library</p>', unsafe_allow_html=True)
@@ -75,11 +163,16 @@ def show_navbar():
         
         with col4:
             if st.button("FAVORITES", use_container_width=True): navigate_to('favorites')
-        
+            
         with col5:
+            if st.button("HISTORY", use_container_width=True): navigate_to('history')
+        
+        with col6:
             if st.button("CONTACT", use_container_width=True): navigate_to('contact')
     
     st.write("")
+
+# --- PAGES ---
 
 def show_homepage():
     set_global_style("test.jpg") 
@@ -97,23 +190,15 @@ def show_homepage():
             margin-top: 20px;
         }
         .hero-subtitle {
-            font-family: 'Arial', sans-serif; font-size: 24px !important; color: #e0e0e0 !important;
+            font-family: 'Montserrat', sans-serif; font-size: 24px !important; color: #e0e0e0 !important;
             text-align: center; margin-top: -20px; margin-bottom: 40px; font-style: italic;
             text-shadow: 2px 2px 4px #000000;
         }
-        div.stButton > button {
-            height: 100px; font-size: 18px; font-weight: bold; 
-            border-radius: 15px; border: 2px solid #00D4FF; transition: all 0.3s;
-        }
-        div.stButton > button:hover {
-            background-color: rgba(0, 212, 255, 0.1); transform: translateY(-5px);
-        }
-        div[data-testid="stHorizontalBlock"] button { height: auto !important; border: none !important; }
         </style>
     """, unsafe_allow_html=True)
     
     st.markdown('<p class="hero-title">Welcome to ITOOK Library!</p>', unsafe_allow_html=True)
-    st.markdown('<p class="hero-subtitle">What adventure awaits you today?</p>', unsafe_allow_html=True)
+    st.markdown('<p class="hero-subtitle">Your gateway to infinite worlds.</p>', unsafe_allow_html=True)
     
     c1, c2, c3 = st.columns(3, gap="medium")
     with c1:
@@ -123,6 +208,7 @@ def show_homepage():
     with c3:
         if st.button("🤖 AI RECOMMENDATION", use_container_width=True): navigate_to('recommend')
 
+    # Daily Manga Logic
     if st.session_state.random_manga_item is None:
         st.session_state.random_manga_item = get_random_manga_data()
 
@@ -139,13 +225,13 @@ def show_homepage():
             with col_img:
                 img_url = manga.get('images', {}).get('jpg', {}).get('large_image_url')
                 if img_url: st.image(img_url, use_container_width=True)
-                st.button("🔄 Shuffle New Manga", on_click=shuffle_manga, use_container_width=True)
+                st.button("🔄 Shuffle New", on_click=shuffle_manga, use_container_width=True)
                 
                 manga_id = manga.get('mal_id')
-                in_fav = is_favorited(manga_id)
+                in_fav = is_favorited(manga_id, 'media')
                 btn_label = "💔 Remove Favorite" if in_fav else "❤️ Add to Favorites"
                 if st.button(btn_label, key="daily_fav_btn", use_container_width=True):
-                    toggle_favorite(manga)
+                    toggle_favorite(manga, 'media')
                     st.rerun()
 
             with col_info:
@@ -158,6 +244,53 @@ def show_homepage():
                 st.write(synopsis)
                 
                 if manga.get('url'): st.markdown(f"[📖 Read more on MyAnimeList]({manga.get('url')})")
+
+def show_recommend_page():
+    set_global_style("test1.png")
+    show_navbar()
+    
+    st.markdown('<div class="content-box">', unsafe_allow_html=True)
+    st.title("🤖 AI Personal Recommendation")
+    st.markdown("Let our AI analyze your preferences and suggest your next obsession!")
+    
+    with st.container(border=True):
+        with st.form("ai_rec_form"):
+            c1, c2 = st.columns(2)
+            with c1:
+                age = st.slider("🎂 Age:", 10, 80, 20)
+                mood = st.selectbox("🎭 Mood:", ["Happy", "Sad", "Adventurous", "Chill", "Dark/Mysterious", "Romantic"])
+            with c2:
+                content_type = st.selectbox("📺 Looking for:", ["Anime", "Manga", "Light Novel"])
+                style = st.selectbox("🎨 Style:", ["Action Packed", "Slow Life", "Mind Bending", "Emotional", "Horror/Thriller"])
+            
+            interests = st.text_area("💭 Describe your hobbies/interests:", placeholder="E.g. I like coding, cyberpunk themes, complex villains, and cats...")
+            
+            submit = st.form_submit_button("✨ Generate Recommendations", type="primary", use_container_width=True)
+            
+        if submit and interests:
+            with st.spinner("AI is thinking..."):
+                recs = get_ai_recommendations(age, interests, mood, style, content_type)
+                if recs:
+                    st.session_state.recommendations = recs
+                    add_to_history("AI_Recommend", f"{content_type} for {mood} mood", f"Generated {len(recs)} items")
+                    st.rerun()
+                else:
+                    st.error("AI could not generate a response. Please try again.")
+
+    if st.session_state.recommendations:
+        st.markdown("### 🎯 Your Results:")
+        for idx, item in enumerate(st.session_state.recommendations):
+            with st.container(border=True):
+                c_a, c_b = st.columns([1, 4])
+                with c_a:
+                    st.markdown(f"## #{idx+1}")
+                with c_b:
+                    st.header(item['title'])
+                    st.caption(f"Genre: {item.get('genre', 'N/A')}")
+                    st.info(item['reason'])
+                    # Simple link to search on MAL
+                    search_url = f"https://myanimelist.net/search/all?q={item['title'].replace(' ', '%20')}"
+                    st.markdown(f"[🔍 Search on Database]({search_url})")
 
 def show_genre_page():
     set_global_style("test4.jpg")
@@ -188,6 +321,7 @@ def show_genre_page():
                 elif order_by == "Oldest": order_param, sort_param = "start_date", "asc"
                 
                 url = f"https://api.jikan.moe/v4/{content_type}?genres={genre_params}&order_by={order_param}&sort={sort_param}&limit=10"
+                add_to_history("Genre_Search", f"{content_type}: {', '.join(selected_names)}", f"Sort: {order_by}")
                 
                 with st.spinner("Fetching data..."):
                     try:
@@ -203,10 +337,10 @@ def show_genre_page():
                                         with c1: 
                                             st.image(item.get('images', {}).get('jpg', {}).get('image_url'), use_container_width=True)
                                             manga_id = item.get('mal_id')
-                                            in_fav = is_favorited(manga_id)
+                                            in_fav = is_favorited(manga_id, 'media')
                                             btn_label = "💔" if in_fav else "❤️ Add"
                                             if st.button(btn_label, key=f"fav_btn_{manga_id}", use_container_width=True):
-                                                toggle_favorite(item)
+                                                toggle_favorite(item, 'media')
                                                 st.rerun()
                                         with c2:
                                             st.subheader(f"📺 {item.get('title_english') or item.get('title')}")
@@ -219,27 +353,62 @@ def show_favorites_page():
     set_global_style("https://wallpapers.com/images/hd/aesthetic-anime-bedroom-lq7b5j3x5x5y5x5.jpg")
     show_navbar()
     
-    st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("❤️ My Favorites Collection")
     
-    if not st.session_state.favorites:
-        st.info("Your collection is empty. Go explore and add some animes/mangas!")
+    tab1, tab2 = st.tabs(["📚 Anime & Manga", "🦸 Characters"])
+    
+    with tab1:
+        media_list = st.session_state.favorites['media']
+        if not media_list:
+            st.info("No Anime/Manga in favorites yet.")
+        else:
+            st.write(f"Count: {len(media_list)}")
+            cols = st.columns(3)
+            for i, item in enumerate(media_list):
+                with cols[i % 3]:
+                    with st.container(border=True):
+                        if item.get('image_url'): st.image(item['image_url'], use_container_width=True)
+                        st.subheader(item.get('title'))
+                        st.caption(f"Score: {item.get('score', 'N/A')}")
+                        if st.button("💔 Remove", key=f"rm_media_{item['mal_id']}", use_container_width=True):
+                            toggle_favorite(item, 'media')
+                            st.rerun()
+                            
+    with tab2:
+        char_list = st.session_state.favorites['characters']
+        if not char_list:
+            st.info("No Characters in favorites yet.")
+        else:
+            st.write(f"Count: {len(char_list)}")
+            cols = st.columns(4)
+            for i, item in enumerate(char_list):
+                with cols[i % 4]:
+                    with st.container(border=True):
+                        if item.get('image_url'): st.image(item['image_url'], use_container_width=True)
+                        st.subheader(item.get('title'))
+                        if st.button("💔 Remove", key=f"rm_char_{item['mal_id']}", use_container_width=True):
+                            toggle_favorite(item, 'characters')
+                            st.rerun()
+
+def show_history_page():
+    set_global_style("test1.png") # Reusing a background
+    show_navbar()
+    
+    st.title("📜 Activity History")
+    
+    if st.button("🗑️ Clear History"):
+        st.session_state.search_history = []
+        st.rerun()
+        
+    history = st.session_state.search_history
+    if not history:
+        st.info("No activity recorded yet.")
     else:
-        st.write(f"You have **{len(st.session_state.favorites)}** items in your library.")
-        st.markdown("---")
-        for item in st.session_state.favorites:
-            with st.container(border=True):
-                c1, c2, c3 = st.columns([1, 4, 1])
-                with c1:
-                    if item.get('image_url'): st.image(item['image_url'], use_container_width=True)
-                with c2:
-                    st.subheader(item.get('title_english') or item.get('title'))
-                    st.caption(f"Type: {item.get('type')} | Score: {item.get('score', 'N/A')}")
-                    if item.get('url'): st.markdown(f"[🔗 Read More]({item['url']})")
-                with c3:
-                    if st.button("💔 Remove", key=f"remove_fav_{item['mal_id']}", use_container_width=True):
-                        toggle_favorite(item)
-                        st.rerun()
+        for item in history:
+            with st.expander(f"🕒 {item['timestamp']} - {item['type']}"):
+                st.write(f"**Query:** {item['query']}")
+                if item.get('details'):
+                    st.caption(f"Details: {item['details']}")
 
 def show_wiki_page():
     set_global_style("test3.jpg")
@@ -247,6 +416,7 @@ def show_wiki_page():
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("🕵️ Character Wiki & Vision")
     
+    # Initialize vars...
     if 'wiki_search_results' not in st.session_state: st.session_state.wiki_search_results = None
     if 'wiki_ai_analysis' not in st.session_state: st.session_state.wiki_ai_analysis = None
     if 'wiki_selected_char' not in st.session_state: st.session_state.wiki_selected_char = None
@@ -264,7 +434,17 @@ def show_wiki_page():
             ai_text = st.session_state.wiki_ai_analysis
             st.markdown("---")
             c_img, c_info = st.columns([1, 2])
-            with c_img: st.image(info['images']['jpg']['image_url'], use_container_width=True)
+            with c_img: 
+                st.image(info['images']['jpg']['image_url'], use_container_width=True)
+                
+                # Favorite logic for Character
+                char_id = info['mal_id']
+                in_fav = is_favorited(char_id, 'characters')
+                btn_label = "💔 Unfavorite" if in_fav else "❤️ Favorite Character"
+                if st.button(btn_label, key="wiki_char_fav"):
+                    toggle_favorite(info, 'characters')
+                    st.rerun()
+                    
             with c_info:
                 st.header(info['name'])
                 st.subheader(f"Japanese: {info.get('name_kanji', '')}")
@@ -279,6 +459,7 @@ def show_wiki_page():
                 clear_previous_results()
                 st.session_state.search_source = "text"
                 st.session_state.wiki_search_results = get_character_data(query)
+                add_to_history("Wiki_Search_Text", query, "Searched by name")
 
         st.text_input("Enter Character Name:", placeholder="E.g: Naruto...", key="search_input", on_change=execute_text_search)
 
@@ -308,6 +489,8 @@ def show_wiki_page():
                                     placeholder.success(full_text + "▌", icon="📝") 
                             placeholder.success(full_text, icon="📝")
                             st.session_state.wiki_ai_analysis = full_text
+                            # Save to history that we analyzed someone
+                            add_to_history("Wiki_Analysis", selected_info['name'], "AI Profile Generated")
                         except Exception as e: st.error(f"AI Error: {e}")
             else: st.warning("No character found.")
         elif st.session_state.search_source == "text" and st.session_state.wiki_ai_analysis:
@@ -322,8 +505,9 @@ def show_wiki_page():
             if st.button("🚀 Scan Character", key="btn_scan_vision", type="primary"):
                 clear_previous_results()
                 st.session_state.search_source = "image"
-                with st.spinner("Gemini 2.0 is Identifying..."):
+                with st.spinner("Gemini is Identifying..."):
                     name = ai_vision_detect(uploaded)
+                    add_to_history("Wiki_Vision", "Image Upload", f"Detected: {name}")
                 if name != "Unknown":
                     st.success(f"Detected: **{name}**")
                     info = get_one_character_data(name)
@@ -350,15 +534,12 @@ def show_wiki_page():
         elif st.session_state.search_source == "image" and st.session_state.wiki_ai_analysis:
             display_final_result()
 
-def show_recommend_page():
-    set_global_style("test1.png")
-    show_navbar()
-    st.markdown('<div class="content-box"><h2>🤖 AI Recommend (Coming Soon)</h2></div>', unsafe_allow_html=True)
-
 def show_contact_page():
     set_global_style("https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1964&auto=format&fit=crop")
     show_navbar()
-    st.markdown('<div class="content-box"><h2>📞 Contact Us</h2></div>', unsafe_allow_html=True)
+    st.markdown('<div class="content-box"><h2>📞 Contact Us</h2><p>Email: admin@itooklibrary.com</p></div>', unsafe_allow_html=True)
+
+# --- MAIN ROUTER ---
 
 if st.session_state.current_page == 'home': 
     show_homepage()
@@ -370,5 +551,7 @@ elif st.session_state.current_page == 'recommend':
     show_recommend_page()
 elif st.session_state.current_page == 'favorites': 
     show_favorites_page()
+elif st.session_state.current_page == 'history':
+    show_history_page()
 elif st.session_state.current_page == 'contact': 
     show_contact_page()
