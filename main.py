@@ -432,12 +432,12 @@ def show_favorites_page():
     
     st.title("❤️ My Favorites Collection")
     
-    tab1, tab2 = st.tabs(["📚 Anime & Manga", "🦸 Characters"])
+    tab1, tab2 = st.tabs(["📚 Animes & Mangas", "🦸 Characters"])
     
     with tab1:
         media_list = st.session_state.favorites['media']
         if not media_list:
-            st.info("No Anime/Manga in favorites yet.")
+            st.info("No Animes/Mangas in favorites yet.")
         else:
             st.write(f"Count: {len(media_list)}")
             cols = st.columns(3)
