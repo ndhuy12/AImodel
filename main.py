@@ -103,60 +103,24 @@ def toggle_favorite(data, category='media'):
         st.session_state.favorites[category].append(fav_item)
         st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
 
-def get_ai_recommendations(age, interests, mood, style, content_type):
-    from ai_service import wait_for_rate_limit
-    import time
-    
+def generate_ai_stream(info):
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    name = info.get('name', 'N/A')
+    about = info.get('about', 'N/A')
+    if about and len(about) > 2000: about = about[:2000] + "..."
+
+    # Character Analysis Prompt
     prompt = f"""
-    You are an expert Otaku and Librarian. 
-    User Profile:
-    - Age: {age}
-    - Mood: {mood}
-    - Interests/Hobbies: {interests}
-    - Preferred Style: {style}
-    
-    Task: Recommend 5 best {content_type}s that perfectly match this profile.
-    
-    Return STRICTLY a JSON array with this format (no markdown, no extra text):
-    [
-      {{
-        "title": "Title of work",
-        "reason": "Why it fits the user (2 sentences max)",
-        "genre": "Main Genre",
-        "search_keyword": "Keyword to search this on database"
-      }}
-    ]
-    """
-    
-    max_retries = 2
-    
-    for attempt in range(max_retries):
-        try:
-            wait_for_rate_limit(min_interval=5)
-            
-            model = genai.GenerativeModel('gemini-2.0-flash-exp')
-            response = model.generate_content(prompt)
-            text = response.text.strip()
-            
-            if text.startswith("```json"): 
-                text = text[7:-3]
-            elif text.startswith("```"): 
-                text = text[3:-3]
-            
-            return json.loads(text)
-            
-        except Exception as e:
-            error_msg = str(e)
-            
-            if attempt < max_retries - 1 and ("429" in error_msg or "quota" in error_msg.lower()):
-                st.warning(f"⏳ API busy. Retrying in 20s...")
-                time.sleep(20)
-                continue
-            else:
-                st.error(f"AI Error: {e}")
-                return None
-    
-    return None
+You are an expert Anime Otaku. Write an engaging profile for this character in ENGLISH.
+Character Name: {name}
+Bio Data: {about}
+
+Requirements:
+1. Catchy Title.
+2. Fun and enthusiastic tone (use emojis 🌟🔥).
+3. Analyze personality & powers.
+4. Keep it under 200 words.
+"""
 # --- UI COMPONENTS ---
 def show_navbar():
     with st.container():
