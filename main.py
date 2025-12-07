@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 from style_css import set_global_style
 from jikan_services import get_genre_map, get_character_data, get_one_character_data, get_random_manga_data
-from ai_service import ai_vision_detect, generate_ai_stream
+from ai_service import ai_vision_detect, generate_ai_stream, get_ai_recommendations
 st.set_page_config(page_title="ITOOK Library", layout="wide", page_icon="📚")
 
 # --- CONFIGURATION ---
@@ -103,64 +103,54 @@ def toggle_favorite(data, category='media'):
         st.session_state.favorites[category].append(fav_item)
         st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
 
-def get_ai_recommendations(age, interests, mood, style, content_type):
-    from ai_service import wait_for_rate_limit
-    import time
+def generate_ai_stream(info):
+    model = genai.GenerativeModel('gemini-2.0-flash')
     
+    name = info.get('name', 'N/A')
+    about = info.get('about', 'N/A')
+    
+    if about and len(about) > 2000: about = about[:2000] + "..."
+
     prompt = f"""
-    You are an expert Otaku and Librarian. 
-    User Profile:
-    - Age: {age}
-    - Mood: {mood}
-    - Interests/Hobbies: {interests}
-    - Preferred Style: {style}
-    
-    Task: Recommend 5 best {content_type}s that perfectly match this profile.
-    
-    Return STRICTLY a JSON array with this format (no markdown, no extra text):
-    [
-      {{
-        "title": "Title of work",
-        "reason": "Why it fits the user (2 sentences max)",
-        "genre": "Main Genre",
-        "search_keyword": "Keyword to search this on database"
-      }}
-    ]
+    You are an expert Anime Otaku. Write an engaging profile for this character in ENGLISH.
+    Character Name: {name}
+    Bio Data: {about}
+
+    Requirements:
+    1. Catchy Title.
+    2. Fun and enthusiastic tone (use emojis 🌟🔥).
+    3. Analyze personality & powers.
+    4. Keep it under 200 words.
     """
     
-    max_retries = 2
-    
+    max_retries = 5
     for attempt in range(max_retries):
         try:
-            wait_for_rate_limit(min_interval=5)
-            
-            model = genai.GenerativeModel('gemini-2.0-flash-exp')
-            response = model.generate_content(prompt)
-            text = response.text.strip()
-            
-            if text.startswith("```json"): 
-                text = text[7:-3]
-            elif text.startswith("```"): 
-                text = text[3:-3]
-            
-            return json.loads(text)
+            response = model.generate_content(prompt, stream=True)
+            return response
             
         except Exception as e:
             error_msg = str(e)
             
-            if attempt < max_retries - 1 and ("429" in error_msg or "quota" in error_msg.lower()):
-                st.warning(f"⏳ API busy. Retrying in 20s...")
-                time.sleep(20)
-                continue
+            if "429" in error_msg or "ResourceExhausted" in error_msg:
+                if attempt < max_retries - 1:
+                    time.sleep(10)
+                    continue
+                else:
+                     class ErrorChunk:
+                        def __init__(self, text): self.text = text
+                     return [ErrorChunk(f"Server Busy (429). Please try again later.")]
             else:
-                st.error(f"AI Error: {e}")
-                return None
-    
-    return None
+                class ErrorChunk:
+                    def __init__(self, text): self.text = text
+                return [ErrorChunk(f"Error: {error_msg}")]
+
+    return []
+        
 # --- UI COMPONENTS ---
 def show_navbar():
     with st.container():
-        col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1], gap="small", vertical_alignment="center")
+        col1, col2, col3, col4, col5, col6 = st.columns([2.5, 0.8, 0.8, 0.8, 0.8, 0.8], gap="small", vertical_alignment="center")
         
         with col1: 
             st.markdown('<p class="logo-text">ITOOK Library</p>', unsafe_allow_html=True)
@@ -175,12 +165,20 @@ def show_navbar():
                 if st.button("🤖 AI Recommend", use_container_width=True): navigate_to('recommend')
         
         with col4:
+            if st.button("FAVORITES", use_container_width=True): navigate_to('favorites')
+        
+        with col5:
             if st.button("ADVANCES", use_container_width=True, key="advances_btn"):
                 st.session_state.show_upgrade_modal = True
                 st.rerun()
         
-        with col5:
+        with col6:
             if st.button("CONTACT", use_container_width=True): navigate_to('contact')
+    
+    if 'api_call_count' in st.session_state and st.session_state.api_call_count > 0:
+        st.caption(f"🔄 API Calls: {st.session_state.api_call_count}")
+    
+    st.write("")
     
     # Usage monitor
     if 'api_call_count' in st.session_state and st.session_state.api_call_count > 0:
@@ -441,12 +439,12 @@ def show_favorites_page():
     
     st.title("❤️ My Favorites Collection")
     
-    tab1, tab2 = st.tabs(["📚 Anime & Manga", "🦸 Characters"])
+    tab1, tab2 = st.tabs(["📚 Animes & Mangas", "🦸 Characters"])
     
     with tab1:
         media_list = st.session_state.favorites['media']
         if not media_list:
-            st.info("No Anime/Manga in favorites yet.")
+            st.info("No Animes/Mangas in favorites yet.")
         else:
             st.write(f"Count: {len(media_list)}")
             cols = st.columns(3)
