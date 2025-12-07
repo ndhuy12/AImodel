@@ -4,19 +4,21 @@ import requests
 import json
 import re
 import os
+import time
 from datetime import datetime
-
 from style_css import set_global_style
 from jikan_services import get_genre_map, get_character_data, get_one_character_data, get_random_manga_data
 from ai_service import ai_vision_detect, generate_ai_stream
-
 st.set_page_config(page_title="ITOOK Library", layout="wide", page_icon="📚")
 
 # --- CONFIGURATION ---
-if "GOOGLE_API_KEY" in st.secrets:
-    API_KEY = st.secrets["GOOGLE_API_KEY"]
-elif "GOOGLE_API_KEY" in os.environ:
-    API_KEY = os.environ["GOOGLE_API_KEY"]
+# main.py
+
+# --- CONFIGURATION ---
+if "GEMINI_API_KEY" in st.secrets: # Thay đổi tên biến tại đây
+    API_KEY = st.secrets["GEMINI_API_KEY"] # Và tại đây
+elif "GEMINI_API_KEY" in os.environ:
+    API_KEY = os.environ["GEMINI_API_KEY"]
 else:
     st.error("API Key is missing. Please check secrets.toml.")
     st.stop()
@@ -26,6 +28,9 @@ genai.configure(api_key=API_KEY)
 # --- SESSION STATE INITIALIZATION ---
 if 'current_page' not in st.session_state:
     st.session_state.current_page = 'home'
+
+if 'show_upgrade_modal' not in st.session_state:
+    st.session_state.show_upgrade_modal = False
 
 if 'favorites' not in st.session_state:
     st.session_state.favorites = {'media': [], 'characters': []}
@@ -48,6 +53,7 @@ if 'recommendations' not in st.session_state:
 # --- HELPER FUNCTIONS ---
 
 def navigate_to(page):
+    st.session_state.show_upgrade_modal = False  # Reset modal khi chuyển trang
     if page == 'wiki':
         st.session_state.wiki_search_results = None
         st.session_state.wiki_ai_analysis = None
@@ -98,6 +104,9 @@ def toggle_favorite(data, category='media'):
         st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
 
 def get_ai_recommendations(age, interests, mood, style, content_type):
+    from ai_service import wait_for_rate_limit
+    import time
+    
     prompt = f"""
     You are an expert Otaku and Librarian. 
     User Profile:
@@ -118,22 +127,40 @@ def get_ai_recommendations(age, interests, mood, style, content_type):
       }}
     ]
     """
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        if text.startswith("```json"): text = text[7:-3]
-        elif text.startswith("```"): text = text[3:-3]
-        return json.loads(text)
-    except Exception as e:
-        st.error(f"AI Error: {e}")
-        return None
-
+    
+    max_retries = 2
+    
+    for attempt in range(max_retries):
+        try:
+            wait_for_rate_limit(min_interval=5)
+            
+            model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            response = model.generate_content(prompt)
+            text = response.text.strip()
+            
+            if text.startswith("```json"): 
+                text = text[7:-3]
+            elif text.startswith("```"): 
+                text = text[3:-3]
+            
+            return json.loads(text)
+            
+        except Exception as e:
+            error_msg = str(e)
+            
+            if attempt < max_retries - 1 and ("429" in error_msg or "quota" in error_msg.lower()):
+                st.warning(f"⏳ API busy. Retrying in 20s...")
+                time.sleep(20)
+                continue
+            else:
+                st.error(f"AI Error: {e}")
+                return None
+    
+    return None
 # --- UI COMPONENTS ---
-
 def show_navbar():
     with st.container():
-        col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 1, 1, 1], gap="small", vertical_alignment="center")
+        col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1], gap="small", vertical_alignment="center")
         
         with col1: 
             st.markdown('<p class="logo-text">ITOOK Library</p>', unsafe_allow_html=True)
@@ -148,21 +175,84 @@ def show_navbar():
                 if st.button("🤖 AI Recommend", use_container_width=True): navigate_to('recommend')
         
         with col4:
-            if st.button("FAVORITES", use_container_width=True): navigate_to('favorites')
-            
-        with col5:
-            if st.button("HISTORY", use_container_width=True): navigate_to('history')
+            if st.button("ADVANCES", use_container_width=True, key="advances_btn"):
+                st.session_state.show_upgrade_modal = True
+                st.rerun()
         
-        with col6:
+        with col5:
             if st.button("CONTACT", use_container_width=True): navigate_to('contact')
     
+    # Usage monitor
+    if 'api_call_count' in st.session_state and st.session_state.api_call_count > 0:
+        st.caption(f"🔄 API Calls: {st.session_state.api_call_count}")
+    
     st.write("")
+
+@st.dialog("🚀 Upgrade Your Experience", width="large")
+def show_upgrade_dialog():
+    st.markdown("""
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+        
+        .upgrade-content {
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+            padding: 10px;
+        }
+        
+        .upgrade-message {
+            font-size: 16px;
+            color: #4a5568;
+            line-height: 2;
+            margin: 20px 0 30px 0;
+            padding: 30px;
+            background: linear-gradient(135deg, #f0f4ff 0%, #fff0f7 100%);
+            border-radius: 20px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .upgrade-message p {
+            margin: 8px 0;
+        }
+        
+        .highlight-text {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 17px;
+        }
+        </style>
+        
+        <div class="upgrade-content">
+            <div class="upgrade-message">
+                <p>Bạn chưa hài lòng với trải nghiệm hiện tại?</p>
+                <p>Bạn muốn sử dụng dịch vụ tốt hơn?</p>
+                <p class="highlight-text">Đừng lo! Chúng tôi sẽ đưa bạn đến 1 công cụ mạnh mẽ hơn!</p>
+                <p style="font-size: 18px; margin-top: 15px;"><strong>Follow us ✨</strong></p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.link_button(
+            "🚀 GO TO ADVANCED VERSION",
+            "https://itookwusadvances.streamlit.app/",
+            use_container_width=True,
+            type="primary"
+        )
+    
+    # Tự động reset flag khi đóng dialog bằng X
+    st.session_state.show_upgrade_modal = False
 
 # --- PAGES ---
 
 def show_homepage():
     set_global_style("test.jpg") 
-    show_navbar() 
+    show_navbar()
+    
+    # Show dialog if modal flag is True
+    if st.session_state.show_upgrade_modal:
+        show_upgrade_dialog() 
     
     st.markdown("""
         <style>
@@ -234,6 +324,10 @@ def show_recommend_page():
     set_global_style("test1.jpg")
     show_navbar()
     
+    # Show dialog if modal flag is True
+    if st.session_state.show_upgrade_modal:
+        show_upgrade_dialog()
+    
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("🤖 AI Personal Recommendation")
     st.markdown("Let our AI analyze your preferences and suggest your next obsession!")
@@ -279,6 +373,10 @@ def show_recommend_page():
 def show_genre_page():
     set_global_style("test4.jpg")
     show_navbar()
+    
+    # Show dialog if modal flag is True
+    if st.session_state.show_upgrade_modal:
+        show_upgrade_dialog()
     
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("📂 Genre Explorer")
@@ -337,6 +435,10 @@ def show_favorites_page():
     set_global_style("https://wallpapers.com/images/hd/aesthetic-anime-bedroom-lq7b5j3x5x5y5x5.jpg")
     show_navbar()
     
+    # Show dialog if modal flag is True
+    if st.session_state.show_upgrade_modal:
+        show_upgrade_dialog()
+    
     st.title("❤️ My Favorites Collection")
     
     tab1, tab2 = st.tabs(["📚 Anime & Manga", "🦸 Characters"])
@@ -378,6 +480,10 @@ def show_history_page():
     set_global_style("test1.png") 
     show_navbar()
     
+    # Show dialog if modal flag is True
+    if st.session_state.show_upgrade_modal:
+        show_upgrade_dialog()
+    
     st.title("📜 Activity History")
     
     if st.button("🗑️ Clear History"):
@@ -397,6 +503,11 @@ def show_history_page():
 def show_wiki_page():
     set_global_style("test3.jpg")
     show_navbar()
+    
+    # Show dialog if modal flag is True
+    if st.session_state.show_upgrade_modal:
+        show_upgrade_dialog()
+    
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("🕵️ Character Wiki & Vision")
     
@@ -518,6 +629,12 @@ def show_wiki_page():
 def show_contact_page():
     set_global_style("https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1964&auto=format&fit=crop")
     show_navbar()
+    
+    # Show dialog if modal flag is True
+    if st.session_state.show_upgrade_modal:
+        show_upgrade_dialog()
+        return
+    
     st.markdown('<div class="content-box"><h2>📞 Contact Us</h2><p>Email: admin@itooklibrary.com</p></div>', unsafe_allow_html=True)
 
 # --- MAIN ROUTER ---
