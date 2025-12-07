@@ -104,7 +104,7 @@ def toggle_favorite(data, category='media'):
         st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
 
 def generate_ai_stream(info):
-    model = genai.GenerativeModel('gemini-2.0-flash-8b')
+    model = genai.GenerativeModel('gemini-2.0-flash')
     
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
