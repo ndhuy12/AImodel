@@ -1,23 +1,18 @@
 import streamlit as st
-import google.generativeai as genai
+from PIL import Image
 import requests
-import json
-import re
 import os
 import time
 from datetime import datetime
-# Giả định bạn đã có các file này trong thư mục dự án
-from style_css import set_global_style
-from jikan_services import get_genre_map, get_character_data, get_one_character_data, get_random_manga_data
-from ai_service import ai_vision_detect, generate_ai_stream, get_ai_recommendations
+from styles_css import set_background_image, add_corner_gif
+from services.genre_service import get_genre_map
+from services.jikan_service import get_character_data, get_one_character_data, get_random_manga_data
+from services.gemini_service import ai_vision_detect, ai_analyze_profile, get_ai_recommendations
 
-# --- 1. PAGE CONFIG & LOADING SCREEN ---
-st.set_page_config(page_title="ITOOK Library", layout="wide", page_icon="📚")
+st.set_page_config(page_title="ITOOK Library", layout="wide", page_icon="itooklogo.jpg")
 
-# Thêm hiệu ứng Loading Screen từ đoạn code cũ vào
 st.markdown("""
 <style>
-    /* Overlay che phủ toàn màn hình */
     .loading-overlay {
         position: fixed;
         top: 0;
@@ -31,35 +26,34 @@ st.markdown("""
         align-items: center;
         z-index: 99999;
         animation: fadeOutOverlay 0.5s ease-out 2.5s forwards;
-        pointer-events: none; /* Cho phép click xuyên qua sau khi ẩn */
     }
     
-    .loading-content { text-align: center; }
+    .loading-content {
+        text-align: center;
+    }
     
     .loading-title {
-        font-family: 'Pacifico', cursive;
-        font-size: 2.5rem;
-        color: #ff7f50;
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
         margin-bottom: 30px;
-        text-shadow: 0 0 10px rgba(255, 127, 80, 0.5);
     }
     
-    /* Progress bar container */
     .progress-container {
-        width: 300px;
-        height: 6px;
+        width: 400px;
+        height: 8px;
         background: rgba(255, 255, 255, 0.2);
         border-radius: 10px;
         overflow: hidden;
         margin-bottom: 15px;
     }
     
-    /* Progress bar fill */
     .progress-bar {
         height: 100%;
-        background: linear-gradient(90deg, #ff7f50 0%, #ff6b6b 100%);
+        background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
         border-radius: 10px;
-        animation: loadProgress 2.2s ease-out forwards;
+        animation: loadProgress 2s ease-out forwards;
+        box-shadow: 0 0 10px rgba(79, 172, 254, 0.5);
     }
     
     @keyframes loadProgress {
@@ -67,47 +61,55 @@ st.markdown("""
         100% { width: 100%; }
     }
     
-    /* Animation ẩn overlay */
-    @keyframes fadeOutOverlay {
-        0% { opacity: 1; visibility: visible; }
-        99% { opacity: 0; visibility: visible; }
-        100% { opacity: 0; visibility: hidden; }
+    .progress-text {
+        color: white;
+        font-size: 1.2rem;
+        animation: countUp 2s ease-out forwards;
     }
     
-    /* Hiệu ứng mờ nội dung chính khi mới vào */
-    .main, .stApp > header {
+    @keyframes fadeOutOverlay {
+        to {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+    }
+    
+    .main, .stApp > header, [data-testid="stSidebar"] {
+        opacity: 0.3;
+        filter: blur(5px);
         animation: clearContent 1s ease-in-out 2.2s forwards;
     }
     
     @keyframes clearContent {
-        0% { opacity: 0; filter: blur(5px); }
-        100% { opacity: 1; filter: blur(0px); }
+        to {
+            opacity: 1;
+            filter: blur(0px);
+        }
     }
 </style>
 
 <div class="loading-overlay">
     <div class="loading-content">
-        <div class="loading-title">ITOOK Library</div>
+        <div class="loading-title">-- ITOOK LIBRARY --</div>
         <div class="progress-container">
             <div class="progress-bar"></div>
         </div>
-        <div style="color: white; font-family: monospace;">Loading Assets...</div>
+        <div class="progress-text" id="progress-text">Loading... 0%</div>
     </div>
 </div>
+
+<script>
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += 2;
+        if (progress > 100) progress = 100;
+        document.getElementById('progress-text').innerText = `Loading... ${progress}%`;
+        if (progress >= 100) clearInterval(interval);
+    }, 40);
+</script>
 """, unsafe_allow_html=True)
 
-# --- CONFIGURATION API ---
-if "GEMINI_API_KEY" in st.secrets:
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-elif "GEMINI_API_KEY" in os.environ:
-    API_KEY = os.environ["GEMINI_API_KEY"]
-else:
-    st.error("API Key is missing. Please check secrets.toml.")
-    st.stop()
-
-genai.configure(api_key=API_KEY)
-
-# --- SESSION STATE INITIALIZATION ---
 if 'current_page' not in st.session_state:
     st.session_state.current_page = 'home'
 
@@ -116,15 +118,6 @@ if 'show_upgrade_modal' not in st.session_state:
 
 if 'favorites' not in st.session_state:
     st.session_state.favorites = {'media': [], 'characters': []}
-elif isinstance(st.session_state.favorites, list):
-    # Migration logic cũ (nếu có)
-    old_favs = st.session_state.favorites
-    st.session_state.favorites = {'media': [], 'characters': []}
-    for item in old_favs:
-        if item.get('type') == 'Character':
-            st.session_state.favorites['characters'].append(item)
-        else:
-            st.session_state.favorites['media'].append(item)
 
 if 'search_history' not in st.session_state:
     st.session_state.search_history = []
@@ -133,11 +126,9 @@ if 'random_manga_item' not in st.session_state:
 if 'recommendations' not in st.session_state:
     st.session_state.recommendations = None
 
-# --- HELPER FUNCTIONS ---
 def navigate_to(page):
     st.session_state.show_upgrade_modal = False
     if page == 'wiki':
-        # Reset state wiki khi vào mới để tránh lỗi hiển thị cũ
         st.session_state.wiki_search_results = None
         st.session_state.wiki_ai_analysis = None
         st.session_state.wiki_selected_char = None
@@ -186,10 +177,8 @@ def toggle_favorite(data, category='media'):
         st.session_state.favorites[category].append(fav_item)
         st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
 
-# --- UI COMPONENTS ---
 def show_navbar():
     with st.container():
-        # Điều chỉnh tỷ lệ cột navbar
         col1, col2, col3, col4, col5, col6 = st.columns([2.5, 0.8, 0.8, 0.8, 0.8, 0.8], gap="small", vertical_alignment="center")
         
         with col1: 
@@ -214,13 +203,12 @@ def show_navbar():
         
         with col6:
             if st.button("CONTACT", use_container_width=True): navigate_to('contact')
-    
     st.write("")
 
 @st.dialog("🚀 Upgrade Your Experience", width="large")
 def show_upgrade_dialog():
     st.markdown("""
-        <div style="text-align: center; padding: 20px;">
+        <div style="text-align:center; padding:20px;">
             <h3>Discover More with Advanced Version</h3>
             <p>Trải nghiệm phiên bản nâng cao với nhiều tính năng độc quyền hơn.</p>
         </div>
@@ -236,10 +224,8 @@ def show_upgrade_dialog():
         )
     st.session_state.show_upgrade_modal = False
 
-# --- PAGE: HOMEPAGE ---
 def show_homepage():
-    # Sử dụng ảnh nền đẹp
-    set_global_style("test.jpg") 
+    set_background_image("utsuro.webp") 
     show_navbar()
     
     if st.session_state.show_upgrade_modal:
@@ -265,7 +251,7 @@ def show_homepage():
     """, unsafe_allow_html=True)
     
     st.markdown('<p class="hero-title">Welcome to ITOOK Library!</p>', unsafe_allow_html=True)
-    st.markdown('<p class="hero-subtitle">Find your Waifu, Discover new Worlds.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="hero-subtitle">Your gateway to infinite worlds.</p>', unsafe_allow_html=True)
     
     c1, c2, c3 = st.columns(3, gap="medium")
     with c1:
@@ -275,7 +261,6 @@ def show_homepage():
     with c3:
         if st.button("🤖 AI RECOMMENDATION", use_container_width=True): navigate_to('recommend')
 
-    # Random Manga Section
     if st.session_state.random_manga_item is None:
         st.session_state.random_manga_item = get_random_manga_data()
 
@@ -309,11 +294,11 @@ def show_homepage():
                 synopsis = manga.get('synopsis')
                 if synopsis and len(synopsis) > 600: synopsis = synopsis[:600] + "..."
                 st.write(synopsis)
+                
                 if manga.get('url'): st.markdown(f"[📖 Read more on MyAnimeList]({manga.get('url')})")
 
-# --- PAGE: AI RECOMMENDATION ---
 def show_recommend_page():
-    set_global_style("test1.jpg")
+    set_background_image("test1.jpg")
     show_navbar()
     
     if st.session_state.show_upgrade_modal:
@@ -339,13 +324,16 @@ def show_recommend_page():
             
         if submit and interests:
             with st.spinner("AI is thinking..."):
-                recs = get_ai_recommendations(age, interests, mood, style, content_type)
-                if recs:
-                    st.session_state.recommendations = recs
-                    add_to_history("AI_Recommend", f"{content_type} for {mood} mood", f"Generated {len(recs)} items")
-                    st.rerun()
-                else:
-                    st.error("AI could not generate a response. Please try again.")
+                try:
+                    recs = get_ai_recommendations(age, interests, mood, style, content_type)
+                    if recs:
+                        st.session_state.recommendations = recs
+                        add_to_history("AI_Recommend", f"{content_type} for {mood} mood", f"Generated {len(recs)} items")
+                        st.rerun()
+                    else:
+                        st.error("AI could not generate a response. Please try again.")
+                except Exception as e:
+                    st.error(f"Error calling AI Service: {e}")
 
     if st.session_state.recommendations:
         st.markdown("### 🎯 Your Results:")
@@ -361,9 +349,8 @@ def show_recommend_page():
                     search_url = f"https://myanimelist.net/search/all?q={item['title'].replace(' ', '%20')}"
                     st.markdown(f"[🔍 Search on Database]({search_url})")
 
-# --- PAGE: GENRE EXPLORER ---
 def show_genre_page():
-    set_global_style("test4.jpg")
+    set_background_image("test4.jpg")
     show_navbar()
     
     if st.session_state.show_upgrade_modal:
@@ -382,19 +369,22 @@ def show_genre_page():
     if genre_map:
         excluded = ["Hentai", "Ecchi", "Erotica", "Harem"]
         genre_map = {k: v for k, v in genre_map.items() if k not in excluded}
-        selected_names = st.multiselect("📚 Choose genres:", sorted(genre_map.keys()))
+        genre_options = {v: k for k, v in genre_map.items()}
+        genre_names = sorted(genre_options.keys())
+
+        selected_genre_names = st.multiselect("📚 Choose genres:", genre_names)
         
         if st.button("🔍 Start Searching", type="primary", use_container_width=True):
-            if not selected_names: st.warning("⚠️ Please choose at least one genre.")
+            if not selected_genre_names: st.warning("⚠️ Please choose at least one genre.")
             else:
-                selected_ids = [str(genre_map[name]) for name in selected_names]
+                selected_ids = [str(genre_options[name]) for name in selected_genre_names]
                 genre_params = ",".join(selected_ids)
                 sort_param, order_param = "desc", "score"
                 if order_by == "Newest": order_param, sort_param = "start_date", "desc"
                 elif order_by == "Oldest": order_param, sort_param = "start_date", "asc"
                 
                 url = f"https://api.jikan.moe/v4/{content_type}?genres={genre_params}&order_by={order_param}&sort={sort_param}&limit=10"
-                add_to_history("Genre_Search", f"{content_type}: {', '.join(selected_names)}", f"Sort: {order_by}")
+                add_to_history("Genre_Search", f"{content_type}: {', '.join(selected_genre_names)}", f"Sort: {order_by}")
                 
                 with st.spinner("Fetching data..."):
                     try:
@@ -422,9 +412,8 @@ def show_genre_page():
                             else: st.warning("No results found.")
                     except: st.error("Connection Error")
 
-# --- PAGE: FAVORITES ---
 def show_favorites_page():
-    set_global_style("test2.jpg")
+    set_background_image("https://wallpapers.com/images/hd/aesthetic-anime-bedroom-lq7b5j3x5x5y5x5.jpg")
     show_navbar()
     
     if st.session_state.show_upgrade_modal:
@@ -445,7 +434,6 @@ def show_favorites_page():
                     with st.container(border=True):
                         if item.get('image_url'): st.image(item['image_url'], use_container_width=True)
                         st.subheader(item.get('title'))
-                        st.caption(f"Score: {item.get('score', 'N/A')}")
                         if st.button("💔 Remove", key=f"rm_media_{item['mal_id']}", use_container_width=True):
                             toggle_favorite(item, 'media')
                             st.rerun()
@@ -465,9 +453,8 @@ def show_favorites_page():
                             toggle_favorite(item, 'characters')
                             st.rerun()
 
-# --- PAGE: WIKI CHARACTER ---
 def show_wiki_page():
-    set_global_style("test3.jpg")
+    set_background_image("test3.jpg")
     show_navbar()
     
     if st.session_state.show_upgrade_modal:
@@ -476,7 +463,6 @@ def show_wiki_page():
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("🕵️ Character Wiki & Vision")
     
-    # State initialization for wiki
     if 'wiki_search_results' not in st.session_state: st.session_state.wiki_search_results = None
     if 'wiki_ai_analysis' not in st.session_state: st.session_state.wiki_ai_analysis = None
     if 'wiki_selected_char' not in st.session_state: st.session_state.wiki_selected_char = None
@@ -538,18 +524,13 @@ def show_wiki_page():
                     with c1: st.image(selected_info['images']['jpg']['image_url'], use_container_width=True)
                     with c2:
                         st.header(selected_info['name'])
-                        placeholder = st.empty()
-                        full_text = ""
-                        try:
-                            stream_response = generate_ai_stream(selected_info)
-                            for chunk in stream_response:
-                                if hasattr(chunk, 'text'):
-                                    full_text += chunk.text
-                                    placeholder.success(full_text + "▌", icon="📝") 
-                            placeholder.success(full_text, icon="📝")
-                            st.session_state.wiki_ai_analysis = full_text
-                            add_to_history("Wiki_Analysis", selected_info['name'], "AI Profile Generated")
-                        except Exception as e: st.error(f"AI Error: {e}")
+                        with st.spinner("AI is analyzing profile..."):
+                            try:
+                                ai_text = ai_analyze_profile(selected_info)
+                                st.session_state.wiki_ai_analysis = ai_text
+                                st.success(ai_text, icon="📝")
+                                add_to_history("Wiki_Analysis", selected_info['name'], "AI Profile Generated")
+                            except Exception as e: st.error(f"AI Error: {e}")
             else: st.warning("No character found.")
         elif st.session_state.search_source == "text" and st.session_state.wiki_ai_analysis:
             display_final_result()
@@ -571,30 +552,24 @@ def show_wiki_page():
                     info = get_one_character_data(name)
                     if info:
                         st.session_state.wiki_selected_char = info
-                        # Tự động trigger phân tích
                         st.markdown("---")
                         c1, c2 = st.columns([1, 2])
                         with c1: st.image(info['images']['jpg']['image_url'], use_container_width=True)
                         with c2:
                             st.header(info['name'])
-                            placeholder = st.empty()
-                            full_text = ""
-                            try:
-                                stream_response = generate_ai_stream(info)
-                                for chunk in stream_response:
-                                    if hasattr(chunk, 'text'):
-                                        full_text += chunk.text
-                                        placeholder.success(full_text + "▌", icon="📝")
-                                placeholder.success(full_text, icon="📝")
-                                st.session_state.wiki_ai_analysis = full_text
-                            except Exception as e: st.error(f"AI Error: {e}")
+                            with st.spinner("AI is analyzing profile..."):
+                                try:
+                                    ai_text = ai_analyze_profile(info)
+                                    st.session_state.wiki_ai_analysis = ai_text
+                                    st.success(ai_text, icon="📝")
+                                except Exception as e: st.error(f"AI Error: {e}")
                     else: st.warning(f"Found '{name}' but no info on MyAnimeList.")
                 else: st.error("Cannot identify character.")
         elif st.session_state.search_source == "image" and st.session_state.wiki_ai_analysis:
             display_final_result()
 
 def show_contact_page():
-    set_global_style("https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1964&auto=format&fit=crop")
+    set_background_image("https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1964&auto=format&fit=crop")
     show_navbar()
     
     if st.session_state.show_upgrade_modal:
@@ -603,7 +578,6 @@ def show_contact_page():
     
     st.markdown('<div class="content-box"><h2>📞 Contact Us</h2><p>Email: admin@itooklibrary.com</p></div>', unsafe_allow_html=True)
 
-# --- MAIN ROUTER ---
 if st.session_state.current_page == 'home': 
     show_homepage()
 elif st.session_state.current_page == 'wiki': 
