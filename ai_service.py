@@ -18,22 +18,33 @@ def ai_vision_detect(image_data):
         return "Unknown"
 
 def generate_ai_stream(info):
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
-    if about and len(about) > 2000: about = about[:2000] + "..."
-
-    # Character Analysis Prompt
-    prompt = f"""
-    You are an expert Anime Otaku. Write an engaging profile for this character in ENGLISH.
-    Character Name: {name}
-    Bio Data: {about}
     
-    Requirements:
-    1. Catchy Title.
-    2. Fun and enthusiastic tone (use emojis 🌟🔥).
-    3. Analyze personality & powers.
-    4. Keep it under 200 words.
+    if about and len(about) > 2000: 
+        about = about[:2000] + "..."
+
+    prompt = f"""
+    Based on the following info: "{about}".
+    Act as a professional Otaku. Write a character analysis profile for {name} in ENGLISH following these 4 sections strictly:
+
+    1. **Short Bio**: Retell their past or background in an engaging way.
+    2. **Appeared In**: Introduce the original Anime and their specific role in it.
+    3. **Powers & Abilities**: Analyze their strengths, special moves, or intellectual capabilities.
+    4. **Personal Rating**: Explain why this character is loved (or hated) by the community.
+
+    Keep the tone enthusiastic and fun! Use emojis 🌟🔥.
     """
 
+    try:
+        response = model.generate_content(prompt, stream=True)
+        return response
+    except Exception as e:
+        class ErrorChunk:
+            def __init__(self, text): self.text = text
+        return [ErrorChunk(f"AI Error: {str(e)}")]
+
     return model.generate_content(prompt, stream=True)
+
