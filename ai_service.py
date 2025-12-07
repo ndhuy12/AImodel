@@ -42,7 +42,7 @@ def ai_vision_detect(image_file):
         return "Unknown"
 
 def generate_ai_stream(info):
-    model = genai.GenerativeModel('gemini-2.0-flash-8b')
+    model = genai.GenerativeModel('gemini-2.0-flash')
     
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
@@ -83,3 +83,4 @@ def generate_ai_stream(info):
                 return [ErrorChunk(f"Error: {error_msg}")]
 
     return []
+
