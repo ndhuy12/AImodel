@@ -18,7 +18,7 @@ def ai_vision_detect(image_data):
         return "Unknown"
 
 def generate_ai_stream(info):
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.0-flash')
     
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
@@ -47,4 +47,5 @@ def generate_ai_stream(info):
         return [ErrorChunk(f"AI Error: {str(e)}")]
 
     return model.generate_content(prompt, stream=True)
+
 
