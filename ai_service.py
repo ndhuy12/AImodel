@@ -31,7 +31,7 @@ def get_ai_recommendations(age, interests, mood, style, content_type):
         return []
 
 def ai_vision_detect(image_file):
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.0-flash')
     
     try:
         img = Image.open(image_file)
@@ -42,7 +42,7 @@ def ai_vision_detect(image_file):
         return "Unknown"
 
 def generate_ai_stream(info):
-    model = genai.GenerativeModel('gemini-1.5-flash-8b')
+    model = genai.GenerativeModel('gemini-2.0-flash-8b')
     
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
