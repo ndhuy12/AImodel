@@ -246,7 +246,7 @@ def show_homepage():
                 if manga.get('url'): st.markdown(f"[📖 Read more on MyAnimeList]({manga.get('url')})")
 
 def show_recommend_page():
-    set_global_style("test1.png")
+    set_global_style("test1.jpg")
     show_navbar()
     
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
@@ -555,3 +555,4 @@ elif st.session_state.current_page == 'history':
     show_history_page()
 elif st.session_state.current_page == 'contact': 
     show_contact_page()
+
