@@ -3,20 +3,13 @@ import base64
 import os
 
 def get_base64_of_bin_file(filename):
-    # Thử tìm file trực tiếp, nếu không thấy thì thử trong thư mục resources
+    file_path = os.path.join(os.getcwd(), "resources", filename)
     try:
-        with open(filename, 'rb') as f:
+        with open(file_path, 'rb') as f:
             data = f.read()
         return base64.b64encode(data).decode()
     except FileNotFoundError:
-        try:
-            # Fallback cho trường hợp để trong thư mục resources
-            file_path = os.path.join(os.getcwd(), "resources", filename)
-            with open(file_path, 'rb') as f:
-                data = f.read()
-            return base64.b64encode(data).decode()
-        except FileNotFoundError:
-            return None
+        return None
 
 def set_global_style(bg_source):
     background_css = ""
@@ -28,7 +21,7 @@ def set_global_style(bg_source):
         """
     elif bg_source.startswith("http"):
         background_css = f"""
-            background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url("{bg_source}");
+            background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("{bg_source}");
             background-size: cover;
             background-attachment: fixed;
             background-position: center;
@@ -38,18 +31,17 @@ def set_global_style(bg_source):
         if b64_data:
             ext = "jpeg" if bg_source.lower().endswith((".jpg", ".jpeg")) else "png"
             background_css = f"""
-                background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url("data:image/{ext};base64,{b64_data}");
+                background-image: url("data:image/{ext};base64,{b64_data}");
                 background-size: cover;
                 background-attachment: fixed;
                 background-position: center;
             """
         else:
-            # Màu nền mặc định nếu không tìm thấy ảnh
             background_css = "background-color: #0e1117;"
 
     st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap');
 
     @keyframes fadeOutLoader {{
         0% {{ opacity: 1; }}
@@ -58,7 +50,7 @@ def set_global_style(bg_source):
     }}
 
     .stApp::before {{
-        content: "Loading ITOOK Library...";
+        content: "Loading Library...";
         position: fixed;
         top: 0; left: 0; width: 100vw; height: 100vh;
         background-color: #0a0a15;
@@ -67,12 +59,11 @@ def set_global_style(bg_source):
         justify-content: center;
         align-items: center;
         color: #ff7f50; 
-        font-family: 'Montserrat', sans-serif;
         font-size: 40px;
         font-weight: bold;
         text-transform: uppercase;
         letter-spacing: 5px;
-        animation: fadeOutLoader 1.2s ease-in-out forwards;
+        animation: fadeOutLoader 1.5s ease-in-out forwards;
         pointer-events: none;
     }}
 
@@ -80,10 +71,10 @@ def set_global_style(bg_source):
     
     .logo-text {{
         font-family: 'Montserrat', 'Arial Black', sans-serif !important;
-        font-size: 30px !important;
+        font-size: 35px !important;
         font-weight: 900 !important;
         color: #FFFFFF !important;
-        text-shadow: 3px 3px 0px #ff7f50;
+        text-shadow: 4px 4px 0px #ff7f50;
         margin: 0 !important;
         padding: 0 !important;
         line-height: 1.2 !important;
@@ -92,95 +83,86 @@ def set_global_style(bg_source):
 
     h1, h2, h3, h4, p, span, div, label, li {{
         color: white !important;
-        text-shadow: 1px 1px 2px #000000 !important; 
+        text-shadow: 2px 2px 4px #000000 !important; 
         font-weight: 500;
-        font-family: 'Montserrat', sans-serif;
     }}
 
-    /* Hide standard Streamlit elements */
     header {{display: none !important;}}
     [data-testid="stHeader"] {{display: none !important;}}
     .stStatusWidget, [data-testid="stStatusWidget"] {{visibility: hidden !important; display: none !important;}}
     div[data-testid="stDecoration"] {{ display: none !important; }}
-    .block-container {{ padding-top: 1rem !important; }}
+    .block-container {{ padding-top: 0rem !important; margin-top: 10px !important; }}
 
-    /* Navigation Bar Styling */
+    .nav-container {{ 
+        background-color: transparent !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        margin-bottom: 20px;
+    }}
+
     div[data-testid="stHorizontalBlock"] button {{
         background-color: transparent !important;
         border: 0px solid transparent !important;
-        border-bottom: 2px solid transparent !important;
+        border-bottom: 3px solid transparent !important;
         border-radius: 0px !important;
         color: #FFFFFF !important;
-        font-size: 16px !important;
-        font-weight: 700 !important;
+        font-size: 20px !important;
+        font-weight: 800 !important;
         text-transform: uppercase;
         text-shadow: 2px 2px 4px #000000 !important;
         transition: all 0.3s ease;
-        padding: 0 5px !important;
+        padding: 0 10px !important;
     }}
 
     div[data-testid="stHorizontalBlock"] button:hover {{
         color: #ff7f50 !important;
-        transform: translateY(-2px);
+        transform: scale(1.1);
         text-shadow: 0 0 10px #ff7f50, 2px 2px 4px #000000 !important;
-        border-bottom: 2px solid #ff7f50 !important;
+        border-bottom: 3px solid #ff7f50 !important;
     }}
 
-    /* Card Containers */
-    div[data-testid="stVerticalBlockBorderWrapper"], div.stContainer {{
-        background-color: rgba(10, 10, 21, 0.85) !important; 
-        border: 1px solid #ff7f50 !important;
-        border-radius: 12px !important;
-        padding: 15px !important;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(4px);
+    div[data-testid="stHorizontalBlock"] button:active, 
+    div[data-testid="stHorizontalBlock"] button:focus {{
+        background-color: transparent !important;
+        color: #ff7f50 !important;
+        border-bottom: 3px solid #ff7f50 !important;
+        box-shadow: none !important;
+    }}
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {{
+        background-color: #0a0a15 !important; 
+        opacity: 0.95; 
+        border: 2px solid #ff7f50 !important;
+        border-radius: 15px !important;
+        padding: 20px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
     }}
     
-    /* Inputs */
-    .stTextArea textarea {{
-        background-color: rgba(0,0,0,0.7) !important;
-        color: white !important;
-        border: 1px solid #444 !important;
+    div[data-testid="stVerticalBlockBorderWrapper"] * {{
+        opacity: 1 !important;
     }}
 
-    /* Buttons */
+    div[data-testid="stImage"] {{ background-color: transparent !important; }}
+    div[data-testid="stImage"] > img {{ border-radius: 12px !important; }}
+
+    div[data-testid="stPopoverBody"] button {{
+        border: 1px solid #ff7f50 !important;
+        border-radius: 8px !important;
+        background-color: rgba(0, 0, 0, 0.9) !important;
+        color: white !important;
+        font-weight: bold !important;
+    }}
+    div[data-testid="stPopoverBody"] button:hover {{
+        border-color: #ff4500 !important;
+        background-color: rgba(255, 127, 80, 0.3) !important;
+        color: #ff7f50 !important;
+    }}
+
     button[kind="primary"] {{
         background: linear-gradient(90deg, #ff7f50, #ff4500) !important;
         color: white !important; border: none !important;
         box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);
         font-weight: bold !important;
-        transition: transform 0.2s;
-    }}
-    button[kind="primary"]:hover {{
-        transform: scale(1.02);
     }}
     </style>
     """, unsafe_allow_html=True)
-
-# --- CÁC HÀM CẦN THIẾT CHO MAIN.PY ---
-# Chúng ta tạo wrapper để main.py gọi được mà không bị lỗi
-
-def set_background_image(bg_source):
-    """Hàm này main.py đang gọi, ta chuyển tiếp nó sang set_global_style"""
-    set_global_style(bg_source)
-
-def add_corner_gif():
-    """Thêm lại hàm này vì main.py đang gọi nó"""
-    st.markdown(
-        """
-        <style>
-        .corner-gif {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            width: 100px;
-            height: auto;
-            z-index: 999999;
-            opacity: 0.8;
-            pointer-events: none;
-        }
-        </style>
-        <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjR5aHdhbmV4YjZ5Y3Z6eXQ5YnZ6Y3Z6eXQ5YnZ6Y3Z6eXQ5YiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/13CoXDiaCcCzp6/giphy.gif" class="corner-gif">
-        """,
-        unsafe_allow_html=True
-    )
