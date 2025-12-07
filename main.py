@@ -6,17 +6,99 @@ import re
 import os
 import time
 from datetime import datetime
+# Giả định bạn đã có các file này trong thư mục dự án
 from style_css import set_global_style
 from jikan_services import get_genre_map, get_character_data, get_one_character_data, get_random_manga_data
 from ai_service import ai_vision_detect, generate_ai_stream, get_ai_recommendations
+
+# --- 1. PAGE CONFIG & LOADING SCREEN ---
 st.set_page_config(page_title="ITOOK Library", layout="wide", page_icon="📚")
 
-# --- CONFIGURATION ---
-# main.py
+# Thêm hiệu ứng Loading Screen từ đoạn code cũ vào
+st.markdown("""
+<style>
+    /* Overlay che phủ toàn màn hình */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 99999;
+        animation: fadeOutOverlay 0.5s ease-out 2.5s forwards;
+        pointer-events: none; /* Cho phép click xuyên qua sau khi ẩn */
+    }
+    
+    .loading-content { text-align: center; }
+    
+    .loading-title {
+        font-family: 'Pacifico', cursive;
+        font-size: 2.5rem;
+        color: #ff7f50;
+        margin-bottom: 30px;
+        text-shadow: 0 0 10px rgba(255, 127, 80, 0.5);
+    }
+    
+    /* Progress bar container */
+    .progress-container {
+        width: 300px;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 15px;
+    }
+    
+    /* Progress bar fill */
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #ff7f50 0%, #ff6b6b 100%);
+        border-radius: 10px;
+        animation: loadProgress 2.2s ease-out forwards;
+    }
+    
+    @keyframes loadProgress {
+        0% { width: 0%; }
+        100% { width: 100%; }
+    }
+    
+    /* Animation ẩn overlay */
+    @keyframes fadeOutOverlay {
+        0% { opacity: 1; visibility: visible; }
+        99% { opacity: 0; visibility: visible; }
+        100% { opacity: 0; visibility: hidden; }
+    }
+    
+    /* Hiệu ứng mờ nội dung chính khi mới vào */
+    .main, .stApp > header {
+        animation: clearContent 1s ease-in-out 2.2s forwards;
+    }
+    
+    @keyframes clearContent {
+        0% { opacity: 0; filter: blur(5px); }
+        100% { opacity: 1; filter: blur(0px); }
+    }
+</style>
 
-# --- CONFIGURATION ---
-if "GEMINI_API_KEY" in st.secrets: # Thay đổi tên biến tại đây
-    API_KEY = st.secrets["GEMINI_API_KEY"] # Và tại đây
+<div class="loading-overlay">
+    <div class="loading-content">
+        <div class="loading-title">ITOOK Library</div>
+        <div class="progress-container">
+            <div class="progress-bar"></div>
+        </div>
+        <div style="color: white; font-family: monospace;">Loading Assets...</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# --- CONFIGURATION API ---
+if "GEMINI_API_KEY" in st.secrets:
+    API_KEY = st.secrets["GEMINI_API_KEY"]
 elif "GEMINI_API_KEY" in os.environ:
     API_KEY = os.environ["GEMINI_API_KEY"]
 else:
@@ -35,6 +117,7 @@ if 'show_upgrade_modal' not in st.session_state:
 if 'favorites' not in st.session_state:
     st.session_state.favorites = {'media': [], 'characters': []}
 elif isinstance(st.session_state.favorites, list):
+    # Migration logic cũ (nếu có)
     old_favs = st.session_state.favorites
     st.session_state.favorites = {'media': [], 'characters': []}
     for item in old_favs:
@@ -51,10 +134,10 @@ if 'recommendations' not in st.session_state:
     st.session_state.recommendations = None
 
 # --- HELPER FUNCTIONS ---
-
 def navigate_to(page):
-    st.session_state.show_upgrade_modal = False  # Reset modal khi chuyển trang
+    st.session_state.show_upgrade_modal = False
     if page == 'wiki':
+        # Reset state wiki khi vào mới để tránh lỗi hiển thị cũ
         st.session_state.wiki_search_results = None
         st.session_state.wiki_ai_analysis = None
         st.session_state.wiki_selected_char = None
@@ -103,53 +186,10 @@ def toggle_favorite(data, category='media'):
         st.session_state.favorites[category].append(fav_item)
         st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
 
-def generate_ai_stream(info):
-    model = genai.GenerativeModel('gemini-2.0-flash')
-    
-    name = info.get('name', 'N/A')
-    about = info.get('about', 'N/A')
-    
-    if about and len(about) > 2000: about = about[:2000] + "..."
-
-    prompt = f"""
-    You are an expert Anime Otaku. Write an engaging profile for this character in ENGLISH.
-    Character Name: {name}
-    Bio Data: {about}
-
-    Requirements:
-    1. Catchy Title.
-    2. Fun and enthusiastic tone (use emojis 🌟🔥).
-    3. Analyze personality & powers.
-    4. Keep it under 200 words.
-    """
-    
-    max_retries = 5
-    for attempt in range(max_retries):
-        try:
-            response = model.generate_content(prompt, stream=True)
-            return response
-            
-        except Exception as e:
-            error_msg = str(e)
-            
-            if "429" in error_msg or "ResourceExhausted" in error_msg:
-                if attempt < max_retries - 1:
-                    time.sleep(10)
-                    continue
-                else:
-                     class ErrorChunk:
-                        def __init__(self, text): self.text = text
-                     return [ErrorChunk(f"Server Busy (429). Please try again later.")]
-            else:
-                class ErrorChunk:
-                    def __init__(self, text): self.text = text
-                return [ErrorChunk(f"Error: {error_msg}")]
-
-    return []
-        
 # --- UI COMPONENTS ---
 def show_navbar():
     with st.container():
+        # Điều chỉnh tỷ lệ cột navbar
         col1, col2, col3, col4, col5, col6 = st.columns([2.5, 0.8, 0.8, 0.8, 0.8, 0.8], gap="small", vertical_alignment="center")
         
         with col1: 
@@ -175,58 +215,14 @@ def show_navbar():
         with col6:
             if st.button("CONTACT", use_container_width=True): navigate_to('contact')
     
-    if 'api_call_count' in st.session_state and st.session_state.api_call_count > 0:
-        st.caption(f"🔄 API Calls: {st.session_state.api_call_count}")
-    
-    st.write("")
-    
-    # Usage monitor
-    if 'api_call_count' in st.session_state and st.session_state.api_call_count > 0:
-        st.caption(f"🔄 API Calls: {st.session_state.api_call_count}")
-    
     st.write("")
 
 @st.dialog("🚀 Upgrade Your Experience", width="large")
 def show_upgrade_dialog():
     st.markdown("""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
-        
-        .upgrade-content {
-            font-family: 'Poppins', sans-serif;
-            text-align: center;
-            padding: 10px;
-        }
-        
-        .upgrade-message {
-            font-size: 16px;
-            color: #4a5568;
-            line-height: 2;
-            margin: 20px 0 30px 0;
-            padding: 30px;
-            background: linear-gradient(135deg, #f0f4ff 0%, #fff0f7 100%);
-            border-radius: 20px;
-            border-left: 5px solid #667eea;
-        }
-        
-        .upgrade-message p {
-            margin: 8px 0;
-        }
-        
-        .highlight-text {
-            font-weight: 600;
-            color: #667eea;
-            font-size: 17px;
-        }
-        </style>
-        
-        <div class="upgrade-content">
-            <div class="upgrade-message">
-                <p>Bạn chưa hài lòng với trải nghiệm hiện tại?</p>
-                <p>Bạn muốn sử dụng dịch vụ tốt hơn?</p>
-                <p class="highlight-text">Đừng lo! Chúng tôi sẽ đưa bạn đến 1 công cụ mạnh mẽ hơn!</p>
-                <p style="font-size: 18px; margin-top: 15px;"><strong>Follow us ✨</strong></p>
-            </div>
+        <div style="text-align: center; padding: 20px;">
+            <h3>Discover More with Advanced Version</h3>
+            <p>Trải nghiệm phiên bản nâng cao với nhiều tính năng độc quyền hơn.</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -238,17 +234,14 @@ def show_upgrade_dialog():
             use_container_width=True,
             type="primary"
         )
-    
-    # Tự động reset flag khi đóng dialog bằng X
     st.session_state.show_upgrade_modal = False
 
-# --- PAGES ---
-
+# --- PAGE: HOMEPAGE ---
 def show_homepage():
+    # Sử dụng ảnh nền đẹp
     set_global_style("test.jpg") 
     show_navbar()
     
-    # Show dialog if modal flag is True
     if st.session_state.show_upgrade_modal:
         show_upgrade_dialog() 
     
@@ -272,7 +265,7 @@ def show_homepage():
     """, unsafe_allow_html=True)
     
     st.markdown('<p class="hero-title">Welcome to ITOOK Library!</p>', unsafe_allow_html=True)
-    st.markdown('<p class="hero-subtitle">Your gateway to infinite worlds.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="hero-subtitle">Find your Waifu, Discover new Worlds.</p>', unsafe_allow_html=True)
     
     c1, c2, c3 = st.columns(3, gap="medium")
     with c1:
@@ -282,6 +275,7 @@ def show_homepage():
     with c3:
         if st.button("🤖 AI RECOMMENDATION", use_container_width=True): navigate_to('recommend')
 
+    # Random Manga Section
     if st.session_state.random_manga_item is None:
         st.session_state.random_manga_item = get_random_manga_data()
 
@@ -315,14 +309,13 @@ def show_homepage():
                 synopsis = manga.get('synopsis')
                 if synopsis and len(synopsis) > 600: synopsis = synopsis[:600] + "..."
                 st.write(synopsis)
-                
                 if manga.get('url'): st.markdown(f"[📖 Read more on MyAnimeList]({manga.get('url')})")
 
+# --- PAGE: AI RECOMMENDATION ---
 def show_recommend_page():
     set_global_style("test1.jpg")
     show_navbar()
     
-    # Show dialog if modal flag is True
     if st.session_state.show_upgrade_modal:
         show_upgrade_dialog()
     
@@ -368,11 +361,11 @@ def show_recommend_page():
                     search_url = f"https://myanimelist.net/search/all?q={item['title'].replace(' ', '%20')}"
                     st.markdown(f"[🔍 Search on Database]({search_url})")
 
+# --- PAGE: GENRE EXPLORER ---
 def show_genre_page():
     set_global_style("test4.jpg")
     show_navbar()
     
-    # Show dialog if modal flag is True
     if st.session_state.show_upgrade_modal:
         show_upgrade_dialog()
     
@@ -429,11 +422,11 @@ def show_genre_page():
                             else: st.warning("No results found.")
                     except: st.error("Connection Error")
 
+# --- PAGE: FAVORITES ---
 def show_favorites_page():
     set_global_style("https://wallpapers.com/images/hd/aesthetic-anime-bedroom-lq7b5j3x5x5y5x5.jpg")
     show_navbar()
     
-    # Show dialog if modal flag is True
     if st.session_state.show_upgrade_modal:
         show_upgrade_dialog()
     
@@ -446,7 +439,6 @@ def show_favorites_page():
         if not media_list:
             st.info("No Animes/Mangas in favorites yet.")
         else:
-            st.write(f"Count: {len(media_list)}")
             cols = st.columns(3)
             for i, item in enumerate(media_list):
                 with cols[i % 3]:
@@ -463,7 +455,6 @@ def show_favorites_page():
         if not char_list:
             st.info("No Characters in favorites yet.")
         else:
-            st.write(f"Count: {len(char_list)}")
             cols = st.columns(4)
             for i, item in enumerate(char_list):
                 with cols[i % 4]:
@@ -474,41 +465,18 @@ def show_favorites_page():
                             toggle_favorite(item, 'characters')
                             st.rerun()
 
-def show_history_page():
-    set_global_style("test1.png") 
-    show_navbar()
-    
-    # Show dialog if modal flag is True
-    if st.session_state.show_upgrade_modal:
-        show_upgrade_dialog()
-    
-    st.title("📜 Activity History")
-    
-    if st.button("🗑️ Clear History"):
-        st.session_state.search_history = []
-        st.rerun()
-        
-    history = st.session_state.search_history
-    if not history:
-        st.info("No activity recorded yet.")
-    else:
-        for item in history:
-            with st.expander(f"🕒 {item['timestamp']} - {item['type']}"):
-                st.write(f"**Query:** {item['query']}")
-                if item.get('details'):
-                    st.caption(f"Details: {item['details']}")
-
+# --- PAGE: WIKI CHARACTER ---
 def show_wiki_page():
     set_global_style("test3.jpg")
     show_navbar()
     
-    # Show dialog if modal flag is True
     if st.session_state.show_upgrade_modal:
         show_upgrade_dialog()
     
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("🕵️ Character Wiki & Vision")
     
+    # State initialization for wiki
     if 'wiki_search_results' not in st.session_state: st.session_state.wiki_search_results = None
     if 'wiki_ai_analysis' not in st.session_state: st.session_state.wiki_ai_analysis = None
     if 'wiki_selected_char' not in st.session_state: st.session_state.wiki_selected_char = None
@@ -598,11 +566,12 @@ def show_wiki_page():
                 with st.spinner("Gemini is Identifying..."):
                     name = ai_vision_detect(uploaded)
                     add_to_history("Wiki_Vision", "Image Upload", f"Detected: {name}")
-                if name != "Unknown":
+                if name and name != "Unknown":
                     st.success(f"Detected: **{name}**")
                     info = get_one_character_data(name)
                     if info:
                         st.session_state.wiki_selected_char = info
+                        # Tự động trigger phân tích
                         st.markdown("---")
                         c1, c2 = st.columns([1, 2])
                         with c1: st.image(info['images']['jpg']['image_url'], use_container_width=True)
@@ -628,7 +597,6 @@ def show_contact_page():
     set_global_style("https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1964&auto=format&fit=crop")
     show_navbar()
     
-    # Show dialog if modal flag is True
     if st.session_state.show_upgrade_modal:
         show_upgrade_dialog()
         return
@@ -636,7 +604,6 @@ def show_contact_page():
     st.markdown('<div class="content-box"><h2>📞 Contact Us</h2><p>Email: admin@itooklibrary.com</p></div>', unsafe_allow_html=True)
 
 # --- MAIN ROUTER ---
-
 if st.session_state.current_page == 'home': 
     show_homepage()
 elif st.session_state.current_page == 'wiki': 
@@ -647,7 +614,5 @@ elif st.session_state.current_page == 'recommend':
     show_recommend_page()
 elif st.session_state.current_page == 'favorites': 
     show_favorites_page()
-elif st.session_state.current_page == 'history':
-    show_history_page()
 elif st.session_state.current_page == 'contact': 
     show_contact_page()
