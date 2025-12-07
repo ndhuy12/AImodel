@@ -107,20 +107,28 @@ def generate_ai_stream(info):
     model = genai.GenerativeModel('gemini-2.0-flash')
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
+    
     if about and len(about) > 2000: about = about[:2000] + "..."
 
-    # Character Analysis Prompt
     prompt = f"""
-You are an expert Anime Otaku. Write an engaging profile for this character in ENGLISH.
-Character Name: {name}
-Bio Data: {about}
+    You are an expert Anime Otaku. Write an engaging profile for this character in ENGLISH.
+    Character Name: {name}
+    Bio Data: {about}
 
-Requirements:
-1. Catchy Title.
-2. Fun and enthusiastic tone (use emojis 🌟🔥).
-3. Analyze personality & powers.
-4. Keep it under 200 words.
-"""
+    Requirements:
+    1. Catchy Title.
+    2. Fun and enthusiastic tone (use emojis 🌟🔥).
+    3. Analyze personality & powers.
+    4. Keep it under 200 words.
+    """
+    
+    try:
+        response = model.generate_content(prompt, stream=True)
+        return response
+    except Exception as e:
+        class ErrorChunk:
+            def __init__(self, text): self.text = text
+        return [ErrorChunk(f"Error: {str(e)}")]
 # --- UI COMPONENTS ---
 def show_navbar():
     with st.container():
