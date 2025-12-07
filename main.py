@@ -143,7 +143,7 @@ def generate_ai_stream(info):
 # --- UI COMPONENTS ---
 def show_navbar():
     with st.container():
-        col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1], gap="small", vertical_alignment="center")
+        col1, col2, col3, col4, col5, col6 = st.columns([2.5, 0.8, 0.8, 0.8, 0.8, 0.8], gap="small", vertical_alignment="center")
         
         with col1: 
             st.markdown('<p class="logo-text">ITOOK Library</p>', unsafe_allow_html=True)
@@ -158,12 +158,20 @@ def show_navbar():
                 if st.button("🤖 AI Recommend", use_container_width=True): navigate_to('recommend')
         
         with col4:
+            if st.button("❤️ FAVORITES", use_container_width=True): navigate_to('favorites')
+        
+        with col5:
             if st.button("ADVANCES", use_container_width=True, key="advances_btn"):
                 st.session_state.show_upgrade_modal = True
                 st.rerun()
         
-        with col5:
+        with col6:
             if st.button("CONTACT", use_container_width=True): navigate_to('contact')
+    
+    if 'api_call_count' in st.session_state and st.session_state.api_call_count > 0:
+        st.caption(f"🔄 API Calls: {st.session_state.api_call_count}")
+    
+    st.write("")
     
     # Usage monitor
     if 'api_call_count' in st.session_state and st.session_state.api_call_count > 0:
