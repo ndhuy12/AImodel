@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 from style_css import set_global_style
 from jikan_services import get_genre_map, get_character_data, get_one_character_data, get_random_manga_data
-from ai_service import ai_vision_detect, generate_ai_stream
+from ai_service import ai_vision_detect, generate_ai_stream, get_ai_recommendations
 st.set_page_config(page_title="ITOOK Library", layout="wide", page_icon="📚")
 
 # --- CONFIGURATION ---
