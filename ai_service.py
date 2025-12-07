@@ -1,7 +1,7 @@
 import google.generativeai as genai
 from PIL import Image
 
-# # AI Services & Prompts
+# AI Services & Prompts
 
 def ai_vision_detect(image_data):
     image = Image.open(image_data)
@@ -35,4 +35,5 @@ def generate_ai_stream(info):
     3. Analyze personality & powers.
     4. Keep it under 200 words.
     """
+
     return model.generate_content(prompt, stream=True)
