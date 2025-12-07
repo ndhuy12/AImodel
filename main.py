@@ -16,7 +16,7 @@ try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
 except:
     # Please replace with your actual key if secrets fail
-    API_KEY = "AIzaSyDS4IfeA-9eXbn-C9J3m4PFqDyU7L1s4CY"
+    API_KEY = "AIzaSyA-YMV8EVxLx7_391iRiDEYmckrZJ_cDJo"
 
 genai.configure(api_key=API_KEY)
 
@@ -555,4 +555,5 @@ elif st.session_state.current_page == 'history':
     show_history_page()
 elif st.session_state.current_page == 'contact': 
     show_contact_page()
+
 
