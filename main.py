@@ -104,7 +104,7 @@ def toggle_favorite(data, category='media'):
         st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
 
 def generate_ai_stream(info):
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
     
@@ -126,9 +126,20 @@ def generate_ai_stream(info):
         response = model.generate_content(prompt, stream=True)
         return response
     except Exception as e:
+        if "429" in str(e):
+            time.sleep(5)
+            try:
+                response = model.generate_content(prompt, stream=True)
+                return response
+            except Exception as e2:
+                class ErrorChunk:
+                    def __init__(self, text): self.text = text
+                return [ErrorChunk(f"Error: {str(e2)}")]
+        
         class ErrorChunk:
             def __init__(self, text): self.text = text
         return [ErrorChunk(f"Error: {str(e)}")]
+        
 # --- UI COMPONENTS ---
 def show_navbar():
     with st.container():
