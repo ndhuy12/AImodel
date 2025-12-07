@@ -3,6 +3,7 @@ import google.generativeai as genai
 import requests
 import json
 import re
+import os
 from datetime import datetime
 
 from style_css import set_global_style
@@ -12,11 +13,13 @@ from ai_service import ai_vision_detect, generate_ai_stream
 st.set_page_config(page_title="ITOOK Library", layout="wide", page_icon="📚")
 
 # --- CONFIGURATION ---
-try:
+if "GOOGLE_API_KEY" in st.secrets:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
-except:
-    # Please replace with your actual key if secrets fail
-    API_KEY = "AIzaSyCNMtLIog8CB7pA1R9otq9NvoCmvAv3F1E"
+elif "GOOGLE_API_KEY" in os.environ:
+    API_KEY = os.environ["GOOGLE_API_KEY"]
+else:
+    st.error("API Key is missing. Please check secrets.toml.")
+    st.stop()
 
 genai.configure(api_key=API_KEY)
 
@@ -24,15 +27,12 @@ genai.configure(api_key=API_KEY)
 if 'current_page' not in st.session_state:
     st.session_state.current_page = 'home'
 
-# Initialize split favorites if not exists
 if 'favorites' not in st.session_state:
-    st.session_state.favorites = {'media': [], 'characters': []} # media = anime/manga/book
+    st.session_state.favorites = {'media': [], 'characters': []}
 elif isinstance(st.session_state.favorites, list):
-    # Migration for old users (convert list to dict)
     old_favs = st.session_state.favorites
     st.session_state.favorites = {'media': [], 'characters': []}
     for item in old_favs:
-        # Simple guess: if it has 'type' and it's not 'Character', goes to media
         if item.get('type') == 'Character':
             st.session_state.favorites['characters'].append(item)
         else:
@@ -48,7 +48,6 @@ if 'recommendations' not in st.session_state:
 # --- HELPER FUNCTIONS ---
 
 def navigate_to(page):
-    # Reset search states when leaving pages
     if page == 'wiki':
         st.session_state.wiki_search_results = None
         st.session_state.wiki_ai_analysis = None
@@ -58,7 +57,6 @@ def navigate_to(page):
     st.rerun()
 
 def add_to_history(action_type, query, details=None):
-    """Add an action to the history log"""
     entry = {
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'type': action_type,
@@ -66,39 +64,30 @@ def add_to_history(action_type, query, details=None):
         'details': details
     }
     st.session_state.search_history.insert(0, entry)
-    # Keep last 50 entries
     if len(st.session_state.search_history) > 50:
         st.session_state.search_history = st.session_state.search_history[:50]
 
 def is_favorited(item_id, category):
-    """Check if item is in favorites list of specific category"""
     for item in st.session_state.favorites[category]:
-        # Support both 'mal_id' (jikan) and 'id' (generic)
         current_id = item.get('mal_id') or item.get('id')
         if str(current_id) == str(item_id):
             return True
     return False
 
 def toggle_favorite(data, category='media'):
-    """
-    Toggle favorite status.
-    category: 'media' (anime/manga) or 'characters'
-    """
     item_id = data.get('mal_id') or data.get('id')
     title_name = data.get('title') or data.get('name') or data.get('title_english')
     
     if is_favorited(item_id, category):
-        # Remove
         st.session_state.favorites[category] = [
             i for i in st.session_state.favorites[category] 
             if str(i.get('mal_id') or i.get('id')) != str(item_id)
         ]
         st.toast(f"💔 Removed '{title_name}' from Favorites", icon="🗑️")
     else:
-        # Add
         fav_item = {
             'mal_id': item_id,
-            'title': title_name, # Standardize display name
+            'title': title_name,
             'image_url': data.get('images', {}).get('jpg', {}).get('image_url') or data.get('image_url'),
             'score': data.get('score'),
             'url': data.get('url'),
@@ -109,7 +98,6 @@ def toggle_favorite(data, category='media'):
         st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
 
 def get_ai_recommendations(age, interests, mood, style, content_type):
-    """Call Gemini for recommendations"""
     prompt = f"""
     You are an expert Otaku and Librarian. 
     User Profile:
@@ -131,10 +119,9 @@ def get_ai_recommendations(age, interests, mood, style, content_type):
     ]
     """
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash-exp') # Or gemini-1.5-flash
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
         text = response.text.strip()
-        # Clean potential markdown code blocks
         if text.startswith("```json"): text = text[7:-3]
         elif text.startswith("```"): text = text[3:-3]
         return json.loads(text)
@@ -146,7 +133,6 @@ def get_ai_recommendations(age, interests, mood, style, content_type):
 
 def show_navbar():
     with st.container():
-        # Adjusted columns for History button
         col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 1, 1, 1], gap="small", vertical_alignment="center")
         
         with col1: 
@@ -208,7 +194,6 @@ def show_homepage():
     with c3:
         if st.button("🤖 AI RECOMMENDATION", use_container_width=True): navigate_to('recommend')
 
-    # Daily Manga Logic
     if st.session_state.random_manga_item is None:
         st.session_state.random_manga_item = get_random_manga_data()
 
@@ -288,7 +273,6 @@ def show_recommend_page():
                     st.header(item['title'])
                     st.caption(f"Genre: {item.get('genre', 'N/A')}")
                     st.info(item['reason'])
-                    # Simple link to search on MAL
                     search_url = f"https://myanimelist.net/search/all?q={item['title'].replace(' ', '%20')}"
                     st.markdown(f"[🔍 Search on Database]({search_url})")
 
@@ -391,7 +375,7 @@ def show_favorites_page():
                             st.rerun()
 
 def show_history_page():
-    set_global_style("test1.png") # Reusing a background
+    set_global_style("test1.png") 
     show_navbar()
     
     st.title("📜 Activity History")
@@ -416,7 +400,6 @@ def show_wiki_page():
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("🕵️ Character Wiki & Vision")
     
-    # Initialize vars...
     if 'wiki_search_results' not in st.session_state: st.session_state.wiki_search_results = None
     if 'wiki_ai_analysis' not in st.session_state: st.session_state.wiki_ai_analysis = None
     if 'wiki_selected_char' not in st.session_state: st.session_state.wiki_selected_char = None
@@ -437,7 +420,6 @@ def show_wiki_page():
             with c_img: 
                 st.image(info['images']['jpg']['image_url'], use_container_width=True)
                 
-                # Favorite logic for Character
                 char_id = info['mal_id']
                 in_fav = is_favorited(char_id, 'characters')
                 btn_label = "💔 Unfavorite" if in_fav else "❤️ Favorite Character"
@@ -489,7 +471,6 @@ def show_wiki_page():
                                     placeholder.success(full_text + "▌", icon="📝") 
                             placeholder.success(full_text, icon="📝")
                             st.session_state.wiki_ai_analysis = full_text
-                            # Save to history that we analyzed someone
                             add_to_history("Wiki_Analysis", selected_info['name'], "AI Profile Generated")
                         except Exception as e: st.error(f"AI Error: {e}")
             else: st.warning("No character found.")
@@ -555,6 +536,3 @@ elif st.session_state.current_page == 'history':
     show_history_page()
 elif st.session_state.current_page == 'contact': 
     show_contact_page()
-
-
-
