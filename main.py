@@ -104,10 +104,10 @@ def toggle_favorite(data, category='media'):
         st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
 
 def generate_ai_stream(info):
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
-    
     if about and len(about) > 2000: about = about[:2000] + "..."
 
     prompt = f"""
@@ -122,23 +122,29 @@ def generate_ai_stream(info):
     4. Keep it under 200 words.
     """
     
-    try:
-        response = model.generate_content(prompt, stream=True)
-        return response
-    except Exception as e:
-        if "429" in str(e):
-            time.sleep(5)
-            try:
-                response = model.generate_content(prompt, stream=True)
-                return response
-            except Exception as e2:
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = model.generate_content(prompt, stream=True)
+            return response
+            
+        except Exception as e:
+            error_msg = str(e)
+            
+            if "429" in error_msg or "ResourceExhausted" in error_msg:
+                if attempt < max_retries - 1:
+                    time.sleep(5)
+                    continue
+                else:
+                     class ErrorChunk:
+                        def __init__(self, text): self.text = text
+                     return [ErrorChunk(f"System busy (Error 429). Please try again.")]
+            else:
                 class ErrorChunk:
                     def __init__(self, text): self.text = text
-                return [ErrorChunk(f"Error: {str(e2)}")]
-        
-        class ErrorChunk:
-            def __init__(self, text): self.text = text
-        return [ErrorChunk(f"Error: {str(e)}")]
+                return [ErrorChunk(f"Error: {error_msg}")]
+
+    return []
         
 # --- UI COMPONENTS ---
 def show_navbar():
