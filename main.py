@@ -430,7 +430,7 @@ def show_genre_page():
                     except: st.error("Connection Error")
 
 def show_favorites_page():
-    set_global_style("https://wallpapers.com/images/hd/aesthetic-anime-bedroom-lq7b5j3x5x5y5x5.jpg")
+    set_global_style("test2.jpg")
     show_navbar()
     
     # Show dialog if modal flag is True
