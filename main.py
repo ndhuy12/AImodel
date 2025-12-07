@@ -187,6 +187,20 @@ def show_navbar():
     st.write("")
 
 @st.dialog("🚀 Upgrade Your Experience", width="large")
+from ai_service import get_api_stats
+    from jikan_services import get_jikan_stats
+    
+    col_stats1, col_stats2 = st.columns(2)
+    with col_stats1:
+        ai_stats = get_api_stats()
+        color = "🔴" if ai_stats['calls_last_minute'] >= 10 else "🟡" if ai_stats['calls_last_minute'] >= 8 else "🟢"
+        st.caption(f"{color} AI: {ai_stats['limit']}")
+    
+    with col_stats2:
+        jikan_stats = get_jikan_stats()
+        st.caption(f"📊 Jikan: {jikan_stats['total_calls']} calls")
+    
+    st.write("")
 def show_upgrade_dialog():
     st.markdown("""
         <style>
@@ -502,17 +516,29 @@ def show_wiki_page():
     set_global_style("test3.jpg")
     show_navbar()
     
-    # Show dialog if modal flag is True
     if st.session_state.show_upgrade_modal:
         show_upgrade_dialog()
     
     st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.title("🕵️ Character Wiki & Vision")
     
-    if 'wiki_search_results' not in st.session_state: st.session_state.wiki_search_results = None
-    if 'wiki_ai_analysis' not in st.session_state: st.session_state.wiki_ai_analysis = None
-    if 'wiki_selected_char' not in st.session_state: st.session_state.wiki_selected_char = None
-    if 'search_source' not in st.session_state: st.session_state.search_source = None
+    # Hiển thị API usage warning
+    from ai_service import get_api_stats
+    stats = get_api_stats()
+    
+    if stats['calls_last_minute'] >= 10:
+        st.warning(f"⚠️ API Usage: {stats['limit']} - Approaching limit! Please wait a moment between searches.")
+    elif stats['calls_last_minute'] >= 8:
+        st.info(f"ℹ️ API Usage: {stats['limit']}")
+    
+    if 'wiki_search_results' not in st.session_state: 
+        st.session_state.wiki_search_results = None
+    if 'wiki_ai_analysis' not in st.session_state: 
+        st.session_state.wiki_ai_analysis = None
+    if 'wiki_selected_char' not in st.session_state: 
+        st.session_state.wiki_selected_char = None
+    if 'search_source' not in st.session_state: 
+        st.session_state.search_source = None
 
     def clear_previous_results():
         st.session_state.wiki_search_results = None
@@ -539,6 +565,11 @@ def show_wiki_page():
             with c_info:
                 st.header(info['name'])
                 st.subheader(f"Japanese: {info.get('name_kanji', '')}")
+                
+                # Check if cached
+                if "⚠️" not in ai_text:  # Không phải error message
+                    st.success("✅ Analysis loaded from cache (instant!)", icon="⚡")
+                
                 st.success(ai_text, icon="📝")
 
     tab1, tab2 = st.tabs(["🔤 Search by Name", "📸 Search by Image"])
@@ -552,13 +583,18 @@ def show_wiki_page():
                 st.session_state.wiki_search_results = get_character_data(query)
                 add_to_history("Wiki_Search_Text", query, "Searched by name")
 
-        st.text_input("Enter Character Name:", placeholder="E.g: Naruto...", key="search_input", on_change=execute_text_search)
+        st.text_input("Enter Character Name:", placeholder="E.g: Naruto...", 
+                     key="search_input", on_change=execute_text_search)
 
         if st.session_state.wiki_search_results:
             results = st.session_state.wiki_search_results
             if len(results) > 0:
                 char_opts = {f"{c['name']} (ID: {c['mal_id']})": c for c in results}
-                selected_key = st.selectbox("Select character:", list(char_opts.keys()), key="char_select_box")
+                selected_key = st.selectbox("Select character:", list(char_opts.keys()), 
+                                          key="char_select_box")
+                
+                # Warning trước khi analyze
+                st.info("💡 Tip: If you get a 'busy' error, wait 1-2 minutes before trying another character.")
                 
                 if st.button("🚀 Analyze Profile", type="primary", use_container_width=True):
                     selected_info = char_opts[selected_key]
@@ -567,62 +603,118 @@ def show_wiki_page():
                     
                     st.markdown("---")
                     c1, c2 = st.columns([1, 2])
-                    with c1: st.image(selected_info['images']['jpg']['image_url'], use_container_width=True)
+                    with c1: 
+                        st.image(selected_info['images']['jpg']['image_url'], use_container_width=True)
                     with c2:
                         st.header(selected_info['name'])
+                        
+                        # Check cache first
+                        char_id = selected_info.get('mal_id')
+                        about_preview = (selected_info.get('about', 'N/A')[:200] 
+                                       if selected_info.get('about') else "no_data")
+                        cache_key = f"{char_id}_{hash(about_preview)}"
+                        
+                        if ('character_analysis_cache' in st.session_state and 
+                            cache_key in st.session_state.character_analysis_cache):
+                            st.success("⚡ Loading from cache (instant!)")
+                        else:
+                            with st.spinner("🤖 AI is analyzing... (this may take 6-10 seconds)"):
+                                pass
+                        
                         placeholder = st.empty()
                         full_text = ""
                         try:
                             stream_response = generate_ai_stream(selected_info)
+                            
                             for chunk in stream_response:
                                 if hasattr(chunk, 'text'):
                                     full_text += chunk.text
                                     placeholder.success(full_text + "▌", icon="📝") 
+                            
                             placeholder.success(full_text, icon="📝")
                             st.session_state.wiki_ai_analysis = full_text
                             add_to_history("Wiki_Analysis", selected_info['name'], "AI Profile Generated")
-                        except Exception as e: st.error(f"AI Error: {e}")
-            else: st.warning("No character found.")
+                            
+                        except Exception as e: 
+                            st.error(f"AI Error: {e}")
+            else: 
+                st.warning("No character found.")
+                
         elif st.session_state.search_source == "text" and st.session_state.wiki_ai_analysis:
             display_final_result()
 
     with tab2:
-        st.info("Upload an anime screenshot.")
-        uploaded = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"], key="vision_uploader")
+        st.info("📸 Upload an anime screenshot to identify the character.")
+        st.warning("⚠️ Vision detection uses more API quota. Use sparingly!")
+        
+        uploaded = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"], 
+                                   key="vision_uploader")
         
         if uploaded:
             st.image(uploaded, width=150, caption="Preview")
+            
+            st.info("💡 This will use AI vision (8-10 seconds wait time)")
+            
             if st.button("🚀 Scan Character", key="btn_scan_vision", type="primary"):
                 clear_previous_results()
                 st.session_state.search_source = "image"
-                with st.spinner("Gemini is Identifying..."):
+                
+                with st.spinner("🤖 Gemini Vision is analyzing... Please wait..."):
                     name = ai_vision_detect(uploaded)
                     add_to_history("Wiki_Vision", "Image Upload", f"Detected: {name}")
+                
                 if name != "Unknown":
-                    st.success(f"Detected: **{name}**")
+                    st.success(f"✅ Detected: **{name}**")
                     info = get_one_character_data(name)
+                    
                     if info:
                         st.session_state.wiki_selected_char = info
                         st.markdown("---")
                         c1, c2 = st.columns([1, 2])
-                        with c1: st.image(info['images']['jpg']['image_url'], use_container_width=True)
+                        with c1: 
+                            st.image(info['images']['jpg']['image_url'], use_container_width=True)
                         with c2:
                             st.header(info['name'])
                             placeholder = st.empty()
                             full_text = ""
                             try:
-                                stream_response = generate_ai_stream(info)
+                                with st.spinner("Generating profile..."):
+                                    stream_response = generate_ai_stream(info)
+                                    
                                 for chunk in stream_response:
                                     if hasattr(chunk, 'text'):
                                         full_text += chunk.text
                                         placeholder.success(full_text + "▌", icon="📝")
+                                        
                                 placeholder.success(full_text, icon="📝")
                                 st.session_state.wiki_ai_analysis = full_text
-                            except Exception as e: st.error(f"AI Error: {e}")
-                    else: st.warning(f"Found '{name}' but no info on MyAnimeList.")
-                else: st.error("Cannot identify character.")
+                                
+                            except Exception as e: 
+                                st.error(f"AI Error: {e}")
+                    else: 
+                        st.warning(f"Found '{name}' but no info on MyAnimeList.")
+                else: 
+                    st.error("❌ Cannot identify character. Try uploading a clearer image or use text search instead.")
+                    
         elif st.session_state.search_source == "image" and st.session_state.wiki_ai_analysis:
             display_final_result()
+    
+    # Cache management section
+    st.markdown("---")
+    with st.expander("🗂️ Cache Management"):
+        from ai_service import clear_analysis_cache
+        
+        if 'character_analysis_cache' in st.session_state:
+            cache_size = len(st.session_state.character_analysis_cache)
+            st.caption(f"📊 Cached analyses: {cache_size}")
+            
+            if cache_size > 0:
+                if st.button("🗑️ Clear All Cached Analyses"):
+                    clear_analysis_cache()
+                    st.success("Cache cleared!")
+                    st.rerun()
+        else:
+            st.caption("📊 No cached data yet")
 
 def show_contact_page():
     set_global_style("https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1964&auto=format&fit=crop")
