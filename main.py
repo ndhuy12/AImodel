@@ -4,7 +4,7 @@ import requests
 import os
 import time
 from datetime import datetime
-from styles_css import set_background_image, add_corner_gif
+from style_css import set_background_image, add_corner_gif
 from services.genre_service import get_genre_map
 from services.jikan_service import get_character_data, get_one_character_data, get_random_manga_data
 from services.gemini_service import ai_vision_detect, ai_analyze_profile, get_ai_recommendations
